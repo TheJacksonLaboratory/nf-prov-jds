@@ -54,6 +54,10 @@ class ProvObserver implements TraceObserverV2 {
 
     private Set<TaskRun> tasks = []
 
+    private Set<TaskRun> failedTasks = []
+
+    private Map<WrrocRenderer,Exception> evidenceErrors = [:]
+
     private Map<String,List<Path>> workflowOutputs
 
     // map of target to source, since a source can be published to multiple targets
@@ -92,20 +96,50 @@ class ProvObserver implements TraceObserverV2 {
     }
 
     @Override
-    void onTaskComplete(TaskEvent event) {
-        // skip failed tasks
-        final task = event.handler.task
-        if( !ProvHelper.isSuccess(task) )
-            return
+    void onFlowBegin() {
+        for( final renderer : renderers ) {
+            if( renderer instanceof WrrocRenderer && renderer.evidence ) {
+                try {
+                    renderer.evidence.captureSource(session)
+                }
+                catch( Exception e ) {
+                    evidenceErrors[renderer] = e
+                    log.warn "Error capturing WRROC source evidence: ${e.message}"
+                }
+            }
+        }
+    }
 
+    private void captureEvidence(TaskRun task) {
+        for( final renderer : renderers ) {
+            if( renderer instanceof WrrocRenderer && renderer.evidence && !evidenceErrors.containsKey(renderer) ) {
+                try {
+                    renderer.evidence.captureTask(task)
+                }
+                catch( Exception e ) {
+                    evidenceErrors[renderer] = e
+                    log.warn "Error capturing WRROC task evidence for ${task.name}: ${e.message}"
+                }
+            }
+        }
+    }
+
+    @Override
+    void onTaskComplete(TaskEvent event) {
+        final task = event.handler.task
         lock.withLock {
-            tasks << task
+            captureEvidence(task)
+            if( ProvHelper.isSuccess(task) )
+                tasks << task
+            else if( renderers.any { it instanceof WrrocRenderer && it.evidence != null } )
+                failedTasks << task
         }
     }
 
     @Override
     void onTaskCached(TaskEvent event) {
         lock.withLock {
+            captureEvidence(event.handler.task)
             tasks << event.handler.task
         }
     }
@@ -140,15 +174,18 @@ class ProvObserver implements TraceObserverV2 {
 
     @Override
     void onFlowComplete() {
-        if( !session.isSuccess() )
-            return
-
         for( final renderer : renderers ) {
+            final includeEvidence = renderer instanceof WrrocRenderer && renderer.evidence != null
+            if( !session.isSuccess() && !includeEvidence )
+                continue
             try {
-                renderer.render(session, tasks, workflowOutputs, publishedFiles)
+                if( renderer instanceof WrrocRenderer && evidenceErrors.containsKey(renderer) )
+                    throw new IllegalStateException('Evidence capture failed; WRROC report was not generated', evidenceErrors[renderer])
+                final reportTasks = includeEvidence ? (tasks + failedTasks) as Set<TaskRun> : tasks
+                renderer.render(session, reportTasks, workflowOutputs, publishedFiles)
             }
             catch( Exception e ) {
-                log.warn "Error occurred while rendering ${rendererName(renderer)} provenance report -- see Nextflow log for details"
+                log.warn "Error occurred while rendering ${rendererName(renderer)} provenance report: ${e.message} -- see Nextflow log for details"
                 log.debug "${e}"
             }
         }

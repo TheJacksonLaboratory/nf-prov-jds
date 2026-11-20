@@ -59,6 +59,10 @@ class WrrocRenderer implements Renderer {
 
     private boolean overwrite
 
+    private Path previewPath
+
+    final RunEvidence evidence
+
     @Delegate
     private PathNormalizer normalizer
 
@@ -74,12 +78,26 @@ class WrrocRenderer implements Renderer {
         overwrite = config.overwrite
 
         ProvHelper.checkFileOverwrite(path, overwrite)
+        if( config.evidence ) {
+            final evidenceDir = path.resolveSibling('prov-evidence')
+            if( Files.exists(evidenceDir) && !overwrite )
+                throw new java.nio.file.FileAlreadyExistsException(evidenceDir.toString())
+            if( Files.exists(evidenceDir) && !Files.isDirectory(evidenceDir) )
+                throw new IllegalArgumentException("Evidence destination is not a directory: ${evidenceDir}")
+            evidence = new RunEvidence(path.toAbsolutePath().parent, config.sourceFiles)
+        }
+        if( config.preview ) {
+            previewPath = path.resolveSibling('ro-crate-preview.html')
+            if( previewPath == path )
+                throw new IllegalArgumentException('WRROC metadata and HTML preview must use different file names')
+            ProvHelper.checkFileOverwrite(previewPath, overwrite)
+        }
     }
 
     @Override
     void render(Session session, Set<TaskRun> tasks, Map<String,List<Path>> workflowOutputs, Map<Path,Path> publishedFiles) {
         // get workflow inputs
-        final taskLookup = ProvHelper.getTaskLookup(tasks)
+        final taskLookup = ProvHelper.getTaskLookup(evidence ? tasks.findAll { it.canBind } as Set<TaskRun> : tasks)
         final workflowInputs = ProvHelper.getWorkflowInputs(tasks, taskLookup)
 
         // get workflow metadata
@@ -108,6 +126,12 @@ class WrrocRenderer implements Renderer {
 
         // create manifest
         final datasetParts = []
+        if( evidence ) {
+            evidence.captureSource(session)
+            for( final task : tasks )
+                evidence.captureTask(task)
+            datasetParts.addAll(evidence.entities.findAll { it['@type'] == 'File' })
+        }
 
         // -- license
         final license = wrrocOpts.license
@@ -405,6 +429,10 @@ class WrrocRenderer implements Renderer {
                 acc
             }
 
+        final toolAnnotations = [:] as Map<TaskProcessor,List<Map>>
+        for( final processor : taskProcessors )
+            toolAnnotations[processor] = processTools(processor)
+
         final moduleSoftwareApplications = processDefs
             .collect() { process ->
                 final result = [
@@ -460,14 +488,40 @@ class WrrocRenderer implements Renderer {
                     }
             }
 
+        final annotatedModuleIds = [:] as Map<TaskProcessor,String>
+        for( final processor : taskProcessors ) {
+            final tools = toolAnnotations[processor]
+            if( !tools )
+                continue
+            final processDef = processLookup[processor]
+            final baseId = processDef ? getModuleId(processDef) : null
+            final baseModule = moduleSoftwareApplications.find { it['@id'] == baseId }
+            final moduleId = getProcessStepId(processor) + '/software'
+            final module = new LinkedHashMap(baseModule ?: [:])
+            final toolEntities = tools.withIndex().collect { Map tool, int index ->
+                annotatedTool(tool, "${moduleId}/tool/${index}".toString())
+            }
+            module.putAll(withoutNulls([
+                '@id'     : moduleId,
+                '@type'   : 'SoftwareApplication',
+                'name'    : processor.name,
+                'isBasedOn': baseId ? ['@id': baseId] : null,
+                'hasPart' : asReferences(toolEntities)
+            ]))
+            annotatedModuleIds[processor] = moduleId
+            moduleSoftwareApplications.add(module)
+            toolSoftwareApplications.addAll(toolEntities)
+        }
+
         final processSteps = ProvHelper.getProcessSteps(session.dag)
         final howToSteps = taskProcessors
             .collect() { process ->
                 final processDef = processLookup[process]
+                final moduleId = annotatedModuleIds[process] ?: (processDef ? getModuleId(processDef) : null)
                 withoutNulls([
                     "@id"        : getProcessStepId(process),
                     "@type"      : "HowToStep",
-                    "workExample": processDef ? ["@id": getModuleId(processDef)] : null,
+                    "workExample": moduleId ? ["@id": moduleId] : null,
                     "position"   : processSteps[process]
                 ])
             }
@@ -502,35 +556,37 @@ class WrrocRenderer implements Renderer {
         final taskCreateActions = tasks
             .collect { task ->
                 final processDef = processLookup[task.processor]
-                final success = ProvHelper.isSuccess(task)
-                final inputs = ProvHelper.getTaskInputs(task).collect { name, source ->
+                final moduleId = annotatedModuleIds[task.processor] ?: (processDef ? getModuleId(processDef) : null)
+                final success = ProvHelper.isSuccess(task) && (!evidence || (!task.failed && !task.aborted))
+                final List<Map> inputs = ProvHelper.getTaskInputs(task).collect { name, source ->
                     final output = ProvHelper.findTaskOutput(source, taskLookup)
                     final id =
                         output ? getTaskOutputId(taskLookup[output], output)
                         : source in paramInputFiles ? getParamFileId(paramInputFiles[source], source)
                         : ProvHelper.isTmpInput(source, session) ? "#tmp/${source.name}"
                         : getDataEntityId(source, getType(source))
-                    ["@id": id]
+                    ["@id": id] as Map
                 }
-                final outputs = ProvHelper.getTaskOutputs(task).collect { target ->
-                    ["@id": getTaskOutputId(task, target)]
+                final List<Map> outputs = (evidence && !task.canBind ? [] : ProvHelper.getTaskOutputs(task)).collect { Path target ->
+                    ["@id": getTaskOutputId(task, target)] as Map
                 }
                 final result = withoutNulls([
                     "@id"         : getTaskId(task),
                     "@type"       : "CreateAction",
                     "name"        : task.name,
-                    "instrument"  : processDef ? ["@id": getModuleId(processDef)] : null,
+                    "instrument"  : moduleId ? ["@id": moduleId] : null,
                     "agent"       : agent ? ["@id": agent["@id"]] : null,
-                    "object"      : inputs,
-                    "result"      : outputs,
+                    "object"      : inputs + (evidence ? (List<Map>) evidence.tasks[RunEvidence.taskKey(task)].inputs : []),
+                    "result"      : outputs + (evidence ? (List<Map>) evidence.tasks[RunEvidence.taskKey(task)].outputs : []),
+                    "subjectOf"   : evidence ? ['@id': ((Map) evidence.tasks[RunEvidence.taskKey(task)].record)['@id']] : null,
                     "actionStatus": success ? "http://schema.org/CompletedActionStatus" : "http://schema.org/FailedActionStatus"
                 ])
                 if( !success )
-                    result["error"] = task.stderr
+                    result["error"] = evidence ? "Task failed (exit status ${task.exitStatus}); logs are not collected.".toString() : task.stderr
                 return result
             }
 
-        final taskOutputs = tasks.collectMany { task ->
+        final taskOutputs = tasks.findAll { !evidence || it.canBind }.collectMany { task ->
             ProvHelper.getTaskOutputs(task).collect { target ->
                 final name = getTaskOutputName(task, target)
 
@@ -628,6 +684,7 @@ class WrrocRenderer implements Renderer {
                         *asReferences(taskCreateActions),
                         *asReferences(taskOutputs),
                         *asReferences(publishCreateActions),
+                        *asReferences(evidence ? evidence.entities.findAll { it['@type'] != 'File' } : []),
                     ],
                     "license"    : license ? ["@id": license["@id"]] : null
                 ]),
@@ -721,7 +778,9 @@ class WrrocRenderer implements Renderer {
                     "result"    : [
                         *asReferences(outputValues),
                         *asReferences(outputFiles),
-                    ]
+                    ],
+                    "actionStatus": evidence ? (session.isSuccess() ? "http://schema.org/CompletedActionStatus" : "http://schema.org/FailedActionStatus") : null,
+                    "subjectOf": evidence ? ["@id": "#source-evidence"] : null,
                 ]),
                 license,
                 agent,
@@ -737,12 +796,83 @@ class WrrocRenderer implements Renderer {
                 *publishCreateActions,
                 *inputFiles,
                 *outputFiles,
+                *(evidence ? evidence.entities.findAll { it['@type'] != 'File' } : []),
             ])
         ]
 
         // render manifest to JSON file
         wrroc["@graph"] = (wrroc["@graph"] as List).collect { entity -> compact(entity) }
         path.text = JsonOutput.prettyPrint(JsonOutput.toJson(wrroc))
+        if( previewPath )
+            MetadataExplorer.write(path, previewPath, overwrite)
+    }
+
+    private static List<Map> processTools(TaskProcessor processor) {
+        final ext = processor.config?.get('ext')
+        final annotation = ext instanceof Map ? ((Map) ext).get('prov') : null
+        if( annotation == null )
+            return []
+        final prefix = "Invalid ext.prov for process '${processor.name}': ".toString()
+        if( !(annotation instanceof Map) )
+            throw new IllegalArgumentException(prefix + 'expected a map containing tools')
+        final unknown = ((Map) annotation).keySet() - ['tools']
+        if( unknown )
+            throw new IllegalArgumentException(prefix + "unknown keys ${unknown}")
+        final tools = ((Map) annotation).get('tools')
+        if( !(tools instanceof List) )
+            throw new IllegalArgumentException(prefix + 'tools must be a list of tool maps')
+        final allowed = ['name', 'version', 'url', 'author', 'description', 'format', 'keywords']
+        final result = [] as List<Map>
+        for( int i = 0; i < ((List) tools).size(); i++ ) {
+            final value = ((List) tools)[i]
+            final location = prefix + "tools[${i}] "
+            if( !(value instanceof Map) )
+                throw new IllegalArgumentException(location + 'must be a map')
+            final tool = (Map) value
+            if( tool.keySet() - allowed )
+                throw new IllegalArgumentException(location + "has unknown keys ${tool.keySet() - allowed}")
+            if( !(tool.name instanceof CharSequence) || !tool.name.toString().trim() )
+                throw new IllegalArgumentException(location + 'requires a nonempty name string')
+            for( final key : ['version', 'url', 'description', 'format'] ) {
+                if( tool.containsKey(key) && (!(tool[key] instanceof CharSequence) || !tool[key].toString().trim()) )
+                    throw new IllegalArgumentException(location + "${key} must be a nonempty string (quote version numbers)")
+            }
+            for( final key : ['author', 'keywords'] ) {
+                if( !tool.containsKey(key) )
+                    continue
+                final entries = tool[key] instanceof List ? (List) tool[key] : [tool[key]]
+                if( entries.any { !(it instanceof CharSequence) || !it.toString().trim() } )
+                    throw new IllegalArgumentException(location + "${key} must be a string or list of nonempty strings")
+            }
+            if( tool.url ) {
+                URI uri
+                try {
+                    uri = new URI(tool.url.toString())
+                }
+                catch( URISyntaxException e ) {
+                    throw new IllegalArgumentException(location + 'url must be an absolute HTTP(S) URL', e)
+                }
+                if( !(uri.scheme?.toLowerCase() in ['http', 'https']) || !uri.host || uri.userInfo )
+                    throw new IllegalArgumentException(location + 'url must be an absolute HTTP(S) URL without credentials')
+            }
+            result.add(new LinkedHashMap(tool))
+        }
+        return result
+    }
+
+    private static Map annotatedTool(Map tool, String id) {
+        final authors = tool.author instanceof List ? (List) tool.author : (tool.author ? [tool.author] : [])
+        return withoutNulls([
+            '@id'           : id,
+            '@type'         : 'SoftwareApplication',
+            'name'          : tool.name.toString(),
+            'softwareVersion': tool.version?.toString(),
+            'url'           : tool.url?.toString(),
+            'author'        : authors ? authors.collect { ['@type': 'Person', 'name': it.toString()] } : null,
+            'description'   : tool.description?.toString(),
+            'encodingFormat': tool.format?.toString(),
+            'keywords'      : tool.keywords
+        ])
     }
 
     /**
@@ -1218,7 +1348,7 @@ class WrrocRenderer implements Renderer {
      * @param task
      */
     private static String getTaskId(TaskRun task) {
-        return "#task/${task.hash}"
+        return "#task/${RunEvidence.taskKey(task)}"
     }
 
     /**

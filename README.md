@@ -74,6 +74,17 @@ Configuration scope for the desired output formats. The following formats are av
 
 - `wrroc`: Render a [Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/). Includes all three profiles (Process, Workflow, and Provenance). See [WRROC.md](docs/WRROC.md) for more information about the additional config options for WRROC.
 
+  This fork also supports per-process `ext.prov.tools` annotations for individual
+  tool versions and an opt-in offline HTML explorer (`preview = true`). The same
+  explorer can be regenerated from existing metadata with
+  `./gradlew generateExplorer -Pmetadata=/path/to/ro-crate-metadata.json`.
+  See [software annotations and explorer usage](docs/WRROC.md#per-process-software-annotations).
+  Opt-in [repeat-analysis evidence](docs/WRROC.md#repeat-analysis-evidence)
+  (`evidence = true`) preserves task scripts, resolved task values, execution
+  settings and source identity, with explicit capture gaps. Large external
+  datasets are not bundled by this feature; review scripts/values for sensitive
+  information before enabling it.
+
 See the [nf-prov-test](./nf-prov-test) directory for an example pipeline that produces every provenance format.
 
 *New in version 1.7.0*

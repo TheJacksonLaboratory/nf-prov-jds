@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>RO-Crate Metadata Explorer</title>
+  <style>
+    :root{--ink:#172a40;--muted:#607287;--border:#dce4ec;--paper:#fff;--bg:#f3f6fa;--accent:#245ad1;--dataset:#127f83;--computation:#7152b9;--software:#bc6822;--crate:#245ad1;--other:#627286}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select{font:inherit}button,a,input,select,summary{outline-offset:3px}button{cursor:pointer}button:disabled{cursor:default;opacity:.45}
+    a{color:var(--accent)}button{color:inherit}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #6aa2ff}
+    .topbar{background:#14283f;color:#fff;padding:19px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .brand{display:flex;align-items:center;gap:13px}.brand-icon{height:40px;width:40px;border:1px solid #6d8daf;border-radius:12px;display:grid;place-items:center;font-size:23px}
+    h1{font-size:21px;letter-spacing:-.4px;margin:0}.eyebrow{font-size:10px;font-weight:750;letter-spacing:1.9px;text-transform:uppercase;color:#b9c9de}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.button{border:1px solid var(--border);border-radius:8px;background:#fff;padding:8px 12px;font-weight:600;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+    .topbar .button{color:#eaf1ff;background:#263f5a;border-color:#536b85}.topbar .primary{background:#e8f0ff;color:#183963;border-color:#e8f0ff}
+    .intro{padding:21px 28px 17px;border-bottom:1px solid var(--border);background:#fff}.intro-line{display:flex;justify-content:space-between;gap:20px;align-items:start}
+    #crate-name{font-size:18px;margin:0 0 3px;letter-spacing:-.3px}.subtle{color:var(--muted);font-size:12px}.privacy{white-space:nowrap;color:#256c58;font-size:12px}
+    #stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.stat{background:#f4f7fb;border:1px solid #e6ecf4;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:500}.stat strong{font-size:17px;margin-right:6px}.stat[aria-pressed=true]{border-color:#88aaf0;background:#eaf1ff}
+    #message{margin:12px 28px 0;border:1px solid #aebfe0;background:#edf3ff;border-radius:8px;padding:10px 14px}#message.error{background:#fff1ef;border-color:#e3a9a0;color:#8f2f25}
+    .workspace{display:grid;grid-template-columns:250px minmax(0,1fr) 340px;min-height:calc(100vh - 222px);gap:0;align-items:start}
+    .sidebar{background:#fff;border-right:1px solid var(--border);position:sticky;top:0;max-height:100vh;overflow:auto;padding:20px 14px}
+    .section-label{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;font-weight:750;color:var(--muted);margin:0 0 10px}
+    .search-label{display:block;font-size:12px;font-weight:650;margin-bottom:6px}#search{width:100%;border:1px solid #bac9da;background:#fafcff;padding:9px 10px;border-radius:8px}
+    #type-filter{width:100%;border:1px solid var(--border);background:#fff;padding:8px;border-radius:8px;margin-top:9px}
+    .scope-buttons{display:flex;gap:4px;margin-top:9px}.scope-buttons button{flex:1;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:11px;padding:6px 2px}.scope-buttons button[aria-pressed=true]{color:#1a4bb4;background:#eaf1ff;border-color:#9bb8f0}
+    #list-count{font-size:11px;color:var(--muted);margin:14px 0 7px}.entity-list{display:flex;flex-direction:column;gap:3px}
+    .entity-row{width:100%;display:flex;gap:9px;align-items:start;border:1px solid transparent;background:transparent;text-align:left;border-radius:8px;padding:9px 7px}
+    .entity-row:hover{background:#f2f6fc}.entity-row[aria-current=true]{background:#eaf1ff;border-color:#b9cef5}.entity-row .row-name{display:block;font-size:12px;font-weight:600;overflow-wrap:anywhere;line-height:1.4}.row-sub{font-size:10px;color:var(--muted)}
+    .type-icon{background:color-mix(in srgb,var(--type-color) 12%,white);color:var(--type-color);border:1px solid color-mix(in srgb,var(--type-color) 25%,white);width:27px;height:27px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;font-size:10px;font-weight:800}
+    .type-Dataset{--type-color:var(--dataset)}.type-Computation{--type-color:var(--computation)}.type-Software,.type-Workflow{--type-color:var(--software)}.type-ROCrate{--type-color:var(--crate)}.type-Schema,.type-Other,.type-Reference,.type-Parameter,.type-Value,.type-Agent,.type-Process{--type-color:var(--other)}
+    .main{padding:20px;min-width:0}.main-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}.main-header h2{font-size:16px;margin:0}.history{display:flex;gap:5px}.history .button{padding:5px 10px}
+    .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:0}.tabs button{border:0;background:transparent;padding:10px 13px;font-size:12px;font-weight:650;color:var(--muted);border-bottom:2px solid transparent}.tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+    .panel{border:1px solid var(--border);background:#fff;border-radius:0 0 12px 12px;padding:17px;box-shadow:0 3px 12px #243c5910}.graph-help{font-size:12px;color:var(--muted);margin:0 0 17px}
+    .map-scroll{overflow:auto;max-height:660px;border:1px solid #e8edf4;border-radius:9px;background:radial-gradient(#dce4ee 1px,transparent 1px);background-size:18px 18px}
+    .map{display:grid;grid-template-columns:minmax(205px,1fr) 196px minmax(205px,1fr);gap:36px;padding:22px 18px;position:relative;min-width:770px;align-items:start}
+    .map svg{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:visible}.map-column{z-index:1;min-width:0}.column-heading{font-size:10px;font-weight:750;letter-spacing:1.3px;color:var(--muted);margin-bottom:12px;text-transform:uppercase}
+    .relation-group{background:#fff;border:1px solid #d5dfeb;border-radius:8px;margin-bottom:13px;overflow:hidden}.relation-heading{padding:7px 10px;background:#f3f6fb;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;gap:7px}
+    .relation-heading code{overflow-wrap:anywhere;font-size:10px;font-family:inherit}.count-badge{background:#e3eaf4;color:#405b7b;border-radius:20px;font-size:10px;padding:1px 6px}
+    .relation-link{display:block;width:100%;padding:8px 10px;border:0;border-bottom:1px solid #edf1f6;background:#fff;text-align:left;overflow-wrap:anywhere;font-size:11px;line-height:1.45}
+    .relation-link:hover{background:#f0f5ff}.relation-link:last-child{border-bottom:0}.relation-link small{display:block;font-size:9px;color:var(--muted);margin-top:2px}.show-more{display:block;border:0;background:#f7faff;color:#245ad1;width:100%;font-size:10px;padding:7px;font-weight:650}
+    .center-node{border:2px solid var(--type-color);background:#fff;border-radius:12px;padding:15px;margin-top:32px;box-shadow:0 5px 20px #16355c12;overflow-wrap:anywhere}
+    .center-node h3{margin:10px 0 7px;font-size:13px;line-height:1.5}.center-node .node-id{font-size:9px;color:var(--muted);line-height:1.5}.pill{display:inline-block;font-size:10px;font-weight:750;padding:3px 8px;border-radius:5px;background:color-mix(in srgb,var(--type-color) 12%,white);color:var(--type-color)}
+    .empty{color:var(--muted);font-size:12px;padding:15px 7px}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-top:14px}.legend span{display:flex;align-items:center;gap:5px}.dot{width:7px;height:7px;border-radius:50%;background:var(--type-color)}
+    .note{border-left:3px solid #9db5d9;padding:7px 10px;background:#f5f8fc;font-size:11px;color:#52677f;margin-top:15px}.note strong{color:#304a68}
+    .inspector{padding:21px 19px;background:#fff;border-left:1px solid var(--border);min-height:100%;min-width:0}
+    #detail-name{font-size:17px;line-height:1.4;margin:12px 0 6px;overflow-wrap:anywhere}#detail-id{font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}
+    #detail-description{font-size:12px;color:#52677f;margin:13px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+    .detail-actions{display:flex;gap:6px;margin:12px 0 17px;flex-wrap:wrap}.detail-actions .button{font-size:11px;padding:6px 9px}
+    .detail-tabs{display:flex;gap:12px;border-bottom:1px solid var(--border);margin-bottom:13px}.detail-tabs button{font-size:12px;border:0;border-bottom:2px solid transparent;padding:8px 0;background:transparent;color:var(--muted)}.detail-tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);font-weight:700}
+    .property{border-bottom:1px solid #edf0f5;padding:10px 0}.property:first-child{padding-top:0}.property-key{font-size:11px;font-weight:700;overflow-wrap:anywhere;margin-bottom:5px}.property-value{font-size:11px;overflow-wrap:anywhere;white-space:pre-wrap;color:#496079}
+    .property-value pre,#raw-json{white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f4f7fb;border:1px solid #e1e8f1;border-radius:6px;padding:9px;max-height:360px;overflow:auto;margin:5px 0}
+    .value-link{border:1px solid #cddbf1;border-radius:5px;background:#f4f8ff;color:#2456a6;padding:3px 6px;font-size:10px;text-align:left;white-space:normal;overflow-wrap:anywhere;margin:2px 3px 2px 0}
+    .locator-label{font-size:10px;font-weight:700;display:block;color:#9c6528;margin-bottom:3px}.value-details summary{cursor:pointer;font-size:11px;font-weight:600;color:#466184}.value-details{margin:5px 0}
+    .table-scroll{overflow:auto;max-height:600px}table{border-collapse:collapse;width:100%;font-size:12px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;background:#f3f6fb;position:sticky;top:0}th,td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top}td button{font-size:11px;color:#245ad1;background:transparent;border:0;text-align:left;padding:0;overflow-wrap:anywhere}
+    .guide h3{margin:17px 0 6px;font-size:14px}.guide p,.guide li{font-size:12px;color:#50657d}.guide ol{padding-left:20px}.guide code{font-size:11px}.guide h3:first-child{margin-top:0}
+    .drop-target{position:fixed;inset:12px;border:3px dashed #5e8fe9;border-radius:16px;background:#edf4fff2;z-index:9;display:grid;place-items:center;font-size:24px;font-weight:700;color:#254d89;pointer-events:none}
+    [hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    footer{padding:15px 28px;border-top:1px solid var(--border);color:var(--muted);font-size:11px;background:#fff}
+    @media(min-width:1181px){.inspector{position:sticky;top:0;max-height:100vh;overflow:auto}}
+    @media(max-width:1180px){.workspace{grid-template-columns:235px minmax(0,1fr)}.sidebar{grid-row:1 / 3}.inspector{grid-column:2;border-top:1px solid var(--border);border-left:0}.main{padding:17px}.map-scroll{max-height:540px}}
+    @media(max-width:700px){.topbar{padding:16px;align-items:start;flex-direction:column;gap:14px}.intro{padding:17px 16px}.intro-line{flex-direction:column;gap:7px}.workspace{display:flex;flex-direction:column}.sidebar{width:100%;position:static;max-height:340px;border-bottom:1px solid var(--border);border-right:0}.main,.inspector{width:100%;padding:16px}.inspector{border-top:1px solid var(--border)}.entity-list{max-height:155px;overflow:auto}.stat{padding:6px 9px}.stat strong{font-size:15px}#message{margin:12px 16px 0}.main-header{align-items:start}.graph-help{font-size:11px}.map-scroll{max-height:470px}footer{padding:14px 16px}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><div class="brand-icon" aria-hidden="true">&#9671;</div><div><div class="eyebrow">RO-Crate / full graph</div><h1>Metadata explorer</h1></div></div>
+    <div class="toolbar">
+      <button class="button" id="guide-button">How to use</button>
+      <button class="button" id="download-page">Save portable page</button>
+      <button class="button primary" id="open-file">Load another crate</button>
+      <input type="file" id="file-input" accept=".json,.jsonld,application/json,application/ld+json" hidden>
+    </div>
+  </header>
+  <section class="intro" aria-label="Crate overview">
+    <div class="intro-line"><div><h2 id="crate-name">No crate loaded</h2><div class="subtle" id="source-name">Choose an RO-Crate metadata JSON file to begin.</div></div><div class="privacy">Offline &middot; read-only &middot; no uploads</div></div>
+    <div id="stats" aria-label="Filter entities by type"></div>
+  </section>
+  <div id="message" role="status" hidden></div>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Entity browser">
+      <p class="section-label">Explore the crate</p>
+      <label class="search-label" for="search">Find an entity <span class="subtle">/</span></label>
+      <input id="search" type="search" placeholder="Name, ID, path or metadata..." autocomplete="off">
+      <label class="sr-only" for="type-filter">Entity type</label><select id="type-filter"><option value="">All entity types</option></select>
+      <div class="scope-buttons" aria-label="Run input and output reference filters">
+        <button data-scope="all" aria-pressed="true">All entities</button><button data-scope="inputs" aria-pressed="false">Run inputs</button><button data-scope="outputs" aria-pressed="false">Run outputs</button>
+      </div>
+      <div id="list-count" aria-live="polite"></div><nav id="entity-list" class="entity-list" aria-label="Entities"></nav>
+    </aside>
+    <main class="main">
+      <div class="main-header"><div><h2>Follow the evidence</h2><div class="subtle">Select any entity to explore its connections.</div></div><div class="history"><button class="button" id="back" aria-label="Previous entity" disabled>&larr;</button><button class="button" id="forward" aria-label="Next entity" disabled>&rarr;</button><button class="button" id="home">Crate root</button></div></div>
+      <div class="tabs" aria-label="Explorer views"><button data-view="map" aria-pressed="true">Connection map</button><button data-view="relations" aria-pressed="false">All relationships <span id="edge-count"></span></button><button data-view="guide" aria-pressed="false">About this view</button></div>
+      <section id="map-view" class="panel" aria-label="Connection map">
+        <p class="graph-help">Read arrows as <strong>source &rarr; property &rarr; target</strong>. Click a connected entity to make it the focus.</p>
+        <div class="map-scroll"><div class="map" id="connection-map">
+          <svg id="connectors" aria-hidden="true"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a5b7d0"></path></marker></defs><g id="paths"></g></svg>
+          <div class="map-column"><div class="column-heading">Referenced by <span id="incoming-count"></span></div><div id="incoming"></div></div>
+          <div class="map-column"><div class="column-heading">Selected entity</div><div id="center-node"></div></div>
+          <div class="map-column"><div class="column-heading">References <span id="outgoing-count"></span></div><div id="outgoing"></div></div>
+        </div></div>
+        <div class="legend"><span class="type-ROCrate"><i class="dot"></i>Crate</span><span class="type-Dataset"><i class="dot"></i>Dataset</span><span class="type-Computation"><i class="dot"></i>Computation</span><span class="type-Software"><i class="dot"></i>Software</span><span class="type-Other"><i class="dot"></i>Other / reference</span></div>
+        <div class="note"><strong>Nothing inferred or pruned.</strong> This view uses every entity and explicit ID reference in the loaded JSON. An absent edge does not mean a dependency did not exist. Input/output filters use declared root lists or the workflow run's object/result links.</div>
+      </section>
+      <section id="relations-view" class="panel" hidden aria-label="All relationships">
+        <p class="graph-help">Every explicit ID reference involving the selected entity, including external references and nested properties. Inverse links are shown separately when the source records them.</p>
+        <div class="table-scroll"><table><thead><tr><th>Source</th><th>Property path</th><th>Target</th></tr></thead><tbody id="relation-rows"></tbody></table></div>
+      </section>
+      <section id="guide-view" class="panel guide" hidden aria-label="Explorer guide">
+        <h3>A map of the metadata, not just one output</h3>
+        <p>Every entity in <code>@graph</code> is available in the left-hand list. No workflow steps, schemas, configuration files or sibling outputs are discarded. The map shows one entity's neighborhood at a time to keep it readable.</p>
+        <ol><li>Search for a filename, tool, process, identifier or value. Type filters and root input/output filters can be combined.</li><li>Select an entity. Sources referencing it appear on the left; its targets appear on the right. Relationship groups show five entries initially; use "Show all" for the rest.</li><li>Click a neighbor to follow the graph. Use the arrows to retrace your steps, or "Crate root" to start over.</li><li>The details panel preserves all properties, commands, parameters and original JSON values. "All relationships" includes nested references and their exact paths.</li></ol>
+        <h3>Reuse this page</h3>
+        <p>Open this HTML directly in a browser. Use "Load another crate" or drop an RO-Crate metadata JSON file onto the page. It is processed locally; nothing is sent to a service. Array and ID-keyed-object forms of <code>@graph</code> are accepted.</p>
+        <p>After loading a different crate, "Save portable page" embeds it in a new self-contained HTML download. Reopening that saved page restores the embedded data. Loading a file alone does not overwrite this page or the metadata on disk.</p>
+        <h3>File access and external references</h3>
+        <p>Only HTTP(S) links and safe crate-relative content paths are clickable. A relative path assumes this page is beside the loaded crate's metadata. A saved page must be placed beside the corresponding crate to retain working relative file links. A browser file picker does not grant this page access to the rest of that crate.</p>
+        <p>Original-machine <code>localPath</code> values are displayed, not treated as packaged files. An HTTP(S) link is opened only when you click it. References without an entity definition remain browsable and are labeled "Reference only"; their metadata is not fetched.</p>
+        <h3>Scope</h3>
+        <p>This is a structural JSON navigator, not a JSON-LD expansion engine or RO-Crate schema validator. Explicit objects containing <code>@id</code> and strings in context-declared ID properties are indexed. Types and literal text are not converted into invented edges. Multi-valued and nested references are preserved.</p>
+        <p>This explorer does not assess AI readiness, repair missing provenance, verify checksums or confirm that a linked file exists. External dependencies, scalar values absent from the source, and directory children without metadata cannot be reconstructed here.</p>
+      </section>
+    </main>
+    <aside class="inspector" aria-label="Selected entity details">
+      <p class="section-label">Entity details</p><div id="detail-type"></div><h2 id="detail-name">Select an entity</h2><div id="detail-id"></div><p id="detail-description"></p>
+      <div class="detail-actions"><button class="button" id="copy-id" disabled>Copy ID</button><button class="button" id="download-entity" disabled>Download entity JSON</button></div>
+      <div class="detail-tabs"><button data-detail="properties" aria-pressed="true">Properties</button><button data-detail="raw" aria-pressed="false">Original JSON</button></div>
+      <div id="properties"></div><pre id="raw-json" hidden></pre>
+    </aside>
+  </div>
+  <footer>RO-Crate Metadata Explorer &middot; Standalone HTML &middot; No libraries, server or internet connection required.</footer>
+  <div class="drop-target" id="drop-target" hidden>Drop a metadata JSON file to explore</div>
+  <noscript>This explorer requires JavaScript enabled in your browser. The original metadata file is unchanged.</noscript>
+  <script id="embedded-crate" type="application/json"><!--__CRATE_DATA__--></script>
+  <script id="explorer-code">
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const labels = {ROCrate:'Crate',Dataset:'Dataset',Computation:'Execution',Software:'Software',Workflow:'Workflow',Process:'Process step',Parameter:'Parameter',Value:'Value',Agent:'Agent',Schema:'Schema',Other:'Other',Reference:'Reference only'};
+    const abbreviations = {ROCrate:'RO',Dataset:'DS',Computation:'EX',Software:'SW',Workflow:'WF',Process:'PS',Parameter:'PA',Value:'VA',Agent:'AG',Schema:'SC',Other:'..',Reference:'?'};
+    let model, selected, historyIds = [], historyPosition = -1, scope = 'all', view = 'map', detailView = 'properties', sourceLabel = 'Embedded metadata', currentCrate;
+    const make = (tag, className, text) => {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text !== undefined) el.textContent = text;
+      return el;
+    };
+    const values = value => value == null ? [] : Array.isArray(value) ? value : [value];
+    const short = value => String(value).split(/[#/:]/).filter(Boolean).pop() || String(value);
+    const nameOf = e => values(e.name).map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ') || e['@id'];
+    function typeOf(e) {
+      const types = values(e['@type']).map(short);
+      if (types.includes('ROCrate') || e['@id'] === './' && types.includes('Dataset')) return 'ROCrate';
+      if (types.includes('ComputationalWorkflow')) return 'Workflow';
+      if (types.includes('FormalParameter')) return 'Parameter';
+      if (types.includes('PropertyValue')) return 'Value';
+      if (types.includes('HowToStep')) return 'Process';
+      if (types.some(t => ['Person','Organization','ContactPoint'].includes(t))) return 'Agent';
+      for (const type of ['Computation','Software','Dataset','Schema']) if (types.includes(type)) return type;
+      if (types.some(t => ['CreateAction','ControlAction','OrganizeAction','Activity'].includes(t))) return 'Computation';
+      if (types.includes('SoftwareSourceCode') || types.includes('SoftwareApplication')) return 'Software';
+      if (types.includes('File') || types.includes('MediaObject')) return 'Dataset';
+      return 'Other';
+    }
+    function createModel(crate) {
+      if (!crate || typeof crate !== 'object' || !crate['@graph'] || typeof crate['@graph'] !== 'object') throw new Error('Expected an RO-Crate JSON object with an @graph array or ID-keyed object.');
+      const field = crate['@graph'];
+      const entities = Array.isArray(field) ? field : field['@id'] ? [field] : Object.entries(field).map(([id,e]) => {
+        if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error('Invalid entity at graph key ' + id);
+        return {...e,'@id':e['@id'] || id};
+      });
+      if (!entities.length) throw new Error('The metadata graph contains no entities.');
+      const index = new Map();
+      for (const e of entities) {
+        if (!e || typeof e !== 'object' || Array.isArray(e) || typeof e['@id'] !== 'string' || !e['@id']) throw new Error('Every graph entity must have a nonempty string @id.');
+        if (index.has(e['@id'])) throw new Error('Duplicate entity ID: ' + e['@id']);
+        index.set(e['@id'],e);
+      }
+      const idProperties = new Set();
+      for (const context of values(crate['@context'])) {
+        if (context && typeof context === 'object') for (const [key,definition] of Object.entries(context)) {
+          if (definition && typeof definition === 'object' && ['@id','@vocab'].includes(definition['@type'])) idProperties.add(key);
+        }
+      }
+      const edges = [], incoming = new Map(), outgoing = new Map(), referenceIds = new Set();
+      const escapePath = key => String(key).replace(/~/g,'~0').replace(/\//g,'~1');
+      function record(source,target,property,pointer) {
+        const edge = {source,target,property,pointer};
+        edges.push(edge);
+        if (!incoming.has(target)) incoming.set(target,[]);
+        if (!outgoing.has(source)) outgoing.set(source,[]);
+        incoming.get(target).push(edge);outgoing.get(source).push(edge);
+        if (!index.has(target)) referenceIds.add(target);
+      }
+      function scan(value,source,property,pointer,idTyped) {
+        if (Array.isArray(value)) return value.forEach((v,i) => scan(v,source,property,pointer+'/'+i,idTyped));
+        if (value && typeof value === 'object') {
+          if (typeof value['@id'] === 'string') record(source,value['@id'],property,pointer);
+          for (const [key,child] of Object.entries(value)) if (!key.startsWith('@')) scan(child,source,property,pointer+'/'+escapePath(key),idProperties.has(key));
+        } else if (typeof value === 'string' && idTyped) record(source,value,property,pointer);
+      }
+      for (const e of entities) for (const [property,value] of Object.entries(e)) {
+        if (!property.startsWith('@')) scan(value,e['@id'],property,'/'+escapePath(property),idProperties.has(property));
+      }
+      const descriptor = index.get('ro-crate-metadata.json');
+      const about = values(descriptor?.about).map(v => typeof v === 'string' ? v : v?.['@id']);
+      const root = entities.find(e => typeOf(e) === 'ROCrate') || about.map(id => index.get(id)).find(Boolean) || index.get('./') || entities.find(e => typeOf(e) === 'Dataset') || entities[0];
+      const mainIds = values(root.mainEntity).map(v => typeof v === 'string' ? v : v?.['@id']);
+      const runs = entities.filter(e => values(e['@type']).map(short).includes('CreateAction') && values(e.instrument).some(v => mainIds.includes(typeof v === 'string' ? v : v?.['@id'])));
+      function rootRefs(property) {
+        const declared = (outgoing.get(root['@id']) || []).filter(edge => short(edge.property).toLowerCase() === property);
+        const references = declared.length ? declared : runs.flatMap(run => (outgoing.get(run['@id']) || []).filter(edge => edge.property === (property === 'inputs' ? 'object' : 'result')));
+        return new Set(references.map(edge => edge.target));
+      }
+      return {entities,index,edges,incoming,outgoing,referenceIds,root,inputs:rootRefs('inputs'),outputs:rootRefs('outputs'),
+        search:new Map(entities.map(e => [e['@id'],JSON.stringify(e).toLowerCase()]))};
+    }
+    function entity(id) { return model.index.get(id) || {'@id':id}; }
+    function category(id) { return model.index.has(id) ? typeOf(entity(id)) : 'Reference'; }
+    function message(text,error = false) {
+      $('message').textContent = text;$('message').className = error ? 'error' : '';$('message').hidden = !text;
+    }
+    function loadCrate(crate,label,initialId) {
+      const next = createModel(crate);
+      model = next;currentCrate = crate;sourceLabel = label;
+      selected = null;historyIds = [];historyPosition = -1;scope = 'all';
+      $('search').value = '';
+      const allTypes = make('option','','All entity types');allTypes.value = '';
+      $('type-filter').replaceChildren(allTypes);
+      $('crate-name').textContent = nameOf(model.root);
+      $('source-name').textContent = label + ' | ' + model.entities.length + ' entities | ' + model.edges.length + ' explicit references | ' + model.referenceIds.size + ' reference-only IDs';
+      const counts = new Map();
+      for (const e of model.entities) counts.set(typeOf(e),(counts.get(typeOf(e)) || 0)+1);
+      $('stats').replaceChildren();
+      for (const [type,count] of [['',model.entities.length],...counts]) {
+        if (type) { const option = make('option','',labels[type]+' ('+count+')');option.value = type;$('type-filter').append(option); }
+        const button = make('button','stat');button.dataset.type = type;button.setAttribute('aria-pressed',String(!type));button.append(make('strong','',count),document.createTextNode(type ? labels[type] : 'All entities'));
+        button.addEventListener('click',() => { $('type-filter').value = type;scope = 'all';renderList(); });
+        $('stats').append(button);
+      }
+      renderList();setView(view);navigate(initialId && (model.index.has(initialId) || model.referenceIds.has(initialId)) ? initialId : model.root['@id']);
+    }
+    function renderList() {
+      if (!model) return;
+      const query = $('search').value.toLowerCase().trim(), type = $('type-filter').value;
+      const filtered = model.entities.filter(e => (!type || typeOf(e) === type) && (!query || model.search.get(e['@id']).includes(query)) && (scope === 'all' || model[scope].has(e['@id'])));
+      $('list-count').textContent = filtered.length+' of '+model.entities.length+' entities'+(scope !== 'all' ? ' | declared run '+scope : '');
+      $('entity-list').replaceChildren();
+      if (!filtered.length) $('entity-list').append(make('p','empty','No entities match these filters. Clear the search or choose All entities.'));
+      for (const e of filtered) {
+        const type = typeOf(e), row = make('button','entity-row type-'+type), text = make('span');
+        row.dataset.id = e['@id'];row.setAttribute('aria-current',String(selected === e['@id']));
+        row.append(make('span','type-icon',abbreviations[type]));
+        text.append(make('span','row-name',nameOf(e)),make('span','row-sub',labels[type]+(model.outputs.has(e['@id']) ? ' | Root output' : '')));
+        row.append(text);row.addEventListener('click',() => navigate(e['@id']));$('entity-list').append(row);
+      }
+      document.querySelectorAll('[data-scope]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.scope === scope)));
+      document.querySelectorAll('.stat').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.type === type)));
+    }
+    function navigate(id,recordHistory = true) {
+      if (!id || !model) return;
+      if (recordHistory && id !== selected) { historyIds = historyIds.slice(0,historyPosition+1);historyIds.push(id);historyPosition = historyIds.length-1; }
+      selected = id;
+      history.replaceState(null,'','#entity='+encodeURIComponent(id));
+      $('back').disabled = historyPosition <= 0;$('forward').disabled = historyPosition >= historyIds.length-1;
+      document.querySelectorAll('.entity-row').forEach(b => b.setAttribute('aria-current',String(b.dataset.id === id)));
+      renderMap();renderRelations();renderDetails();
+    }
+    function relationshipButton(id) {
+      const e = entity(id), button = make('button','relation-link',nameOf(e));
+      button.title = id;button.dataset.target = id;button.append(make('small','',labels[category(id)]));
+      button.addEventListener('click',() => navigate(id));return button;
+    }
+    function renderGroups(container,edges,direction) {
+      container.replaceChildren();
+      const groups = new Map();
+      for (const edge of edges) {
+        if (!groups.has(edge.property)) groups.set(edge.property,[]);
+        groups.get(edge.property).push(edge);
+      }
+      if (!edges.length) container.append(make('p','empty','No explicit '+(direction === 'in' ? 'incoming' : 'outgoing')+' references.'));
+      for (const [property,group] of groups) {
+        const box = make('div','relation-group'), heading = make('div','relation-heading'), list = make('div');
+        box.dataset.direction = direction;heading.title = property;
+        heading.append(make('code','',short(property)),make('span','count-badge',group.length));
+        const targets = [...new Set(group.map(e => direction === 'in' ? e.source : e.target))];
+        const fill = limit => { list.replaceChildren();targets.slice(0,limit).forEach(id => list.append(relationshipButton(id))); };
+        fill(5);box.append(heading,list);
+        if (targets.length > 5) {
+          const expand = make('button','show-more','Show all '+targets.length+' entities');let expanded = false;
+          expand.setAttribute('aria-expanded','false');
+          expand.addEventListener('click',() => { expanded = !expanded;expand.setAttribute('aria-expanded',String(expanded));fill(expanded ? targets.length : 5);expand.textContent = expanded ? 'Show fewer' : 'Show all '+targets.length+' entities';scheduleConnectors(); });
+          box.append(expand);
+        }
+        container.append(box);
+      }
+    }
+    function renderMap() {
+      const incoming = model.incoming.get(selected) || [], outgoing = model.outgoing.get(selected) || [];
+      $('incoming-count').textContent = '('+incoming.length+')';$('outgoing-count').textContent = '('+outgoing.length+')';
+      renderGroups($('incoming'),incoming,'in');renderGroups($('outgoing'),outgoing,'out');
+      const type = category(selected), card = make('article','center-node type-'+type);
+      card.append(make('span','pill',labels[type]),make('h3','',nameOf(entity(selected))),make('div','node-id',selected));
+      if (!model.index.has(selected)) card.append(make('p','subtle','Referenced, but not defined in this metadata. No external data fetched.'));
+      $('center-node').replaceChildren(card);scheduleConnectors();
+    }
+    let connectorFrame;
+    function scheduleConnectors() { cancelAnimationFrame(connectorFrame);connectorFrame = requestAnimationFrame(drawConnectors); }
+    function drawConnectors() {
+      if (view !== 'map') return;
+      const map = $('connection-map'), center = map.querySelector('.center-node');
+      if (!center) return;
+      const rect = map.getBoundingClientRect(), c = center.getBoundingClientRect(), paths = $('paths');paths.replaceChildren();
+      $('connectors').setAttribute('width',String(map.scrollWidth));$('connectors').setAttribute('height',String(map.scrollHeight));
+      map.querySelectorAll('.relation-group').forEach(group => {
+        const r = group.getBoundingClientRect(), incoming = group.dataset.direction === 'in';
+        const x1 = (incoming ? r.right : c.right)-rect.left, y1 = (incoming ? r.top+18 : c.top+c.height/2)-rect.top;
+        const x2 = (incoming ? c.left : r.left)-rect.left, y2 = (incoming ? c.top+c.height/2 : r.top+18)-rect.top;
+        const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+        p.setAttribute('d',`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`);
+        p.setAttribute('fill','none');p.setAttribute('stroke','#a5b7d0');p.setAttribute('stroke-width','1.4');p.setAttribute('marker-end','url(#arrow)');paths.append(p);
+      });
+    }
+    function renderRelations() {
+      const edges = model.edges.filter(e => e.source === selected || e.target === selected);
+      $('edge-count').textContent = '('+edges.length+')';$('relation-rows').replaceChildren();
+      for (const edge of edges) {
+        const row = make('tr'), from = make('td'), property = make('td'), to = make('td');
+        for (const [cell,id] of [[from,edge.source],[to,edge.target]]) { const b = make('button','',nameOf(entity(id)));b.title = id;b.addEventListener('click',() => navigate(id));cell.append(b); }
+        property.append(make('strong','',short(edge.property)),make('div','subtle',edge.pointer));row.append(from,property,to);$('relation-rows').append(row);
+      }
+      if (!edges.length) { const row = make('tr'), cell = make('td','empty','No explicit references for this entity.');cell.colSpan = 3;row.append(cell);$('relation-rows').append(row); }
+    }
+    function safeLink(text,relative = false) {
+      if (typeof text !== 'string') return null;
+      if (text.startsWith('[')) return null;
+      if (/^https?:\/\//i.test(text)) {
+        try { const url = new URL(text);return ['http:','https:'].includes(url.protocol) ? url.href : null; } catch { return null; }
+      }
+      if (!relative || /[\\\u0000-\u0020]/.test(text) || /^[a-z][a-z0-9+.-]*:/i.test(text) || text.startsWith('/') || text.startsWith('#') || text.startsWith('?')) return null;
+      const parts = text.split('/');
+      try { if (parts.some(part => ['..'].includes(decodeURIComponent(part)) || /[\\/\u0000-\u001f]/.test(decodeURIComponent(part)))) return null; } catch { return null; }
+      return text;
+    }
+    function renderValue(value,key,depth = 0) {
+      const wrap = make('div','property-value');
+      if (value === null || typeof value !== 'object') {
+        const text = value === null ? 'null' : String(value), link = key === 'localPath' ? null : safeLink(text,short(key) === 'contentUrl');
+        if (link) { const a = make('a','',text);a.href = link;a.target = '_blank';a.rel = 'noopener noreferrer';wrap.append(a); }
+        else wrap.textContent = text;
+        return wrap;
+      }
+      if (Array.isArray(value)) {
+        if (!value.length) { wrap.textContent = '[]';return wrap; }
+        const details = make('details','value-details'), summary = make('summary','',value.length+' items');details.open = value.length <= 3 && depth < 2;details.append(summary);
+        value.forEach(item => details.append(renderValue(item,key,depth+1)));wrap.append(details);return wrap;
+      }
+      if (typeof value['@id'] === 'string') {
+        const button = make('button','value-link',nameOf(entity(value['@id'])));button.title = value['@id'];button.addEventListener('click',() => navigate(value['@id']));wrap.append(button);
+      }
+      const entries = Object.entries(value).filter(([k]) => k !== '@id');
+      if (entries.length) {
+        const details = make('details','value-details');details.open = depth < 1;
+        details.append(make('summary','',entries.length+' properties'));
+        for (const [k,v] of entries) { const row = make('div','property');row.append(make('div','property-key',k),renderValue(v,k,depth+1));details.append(row); }
+        wrap.append(details);
+      } else if (!('@id' in value)) wrap.textContent = '{}';
+      return wrap;
+    }
+    function renderDetails() {
+      const e = entity(selected), type = category(selected);
+      $('detail-type').className = 'type-'+type;$('detail-type').replaceChildren(make('span','pill',labels[type]));
+      $('detail-name').textContent = nameOf(e);$('detail-id').textContent = selected;
+      $('detail-description').textContent = typeof e.description === 'string' ? e.description : !model.index.has(selected) ? 'This ID is referenced by the graph but has no entity definition here.' : '';
+      $('properties').replaceChildren();$('raw-json').textContent = JSON.stringify(e,null,2);$('copy-id').disabled = false;$('download-entity').disabled = false;
+      const evidenceProperties = new Map(values(e.additionalProperty).map(p => [p?.name,p?.value]));
+      if (evidenceProperties.has('captureStatus')) {
+        const note = make('div','note','Evidence capture: '+evidenceProperties.get('captureStatus')+'. This describes recorded evidence, not a guarantee of repeatability.');
+        const gaps = evidenceProperties.get('captureGaps');
+        if (typeof gaps === 'string') {
+          try {
+            const parsed = JSON.parse(gaps);
+            if (Array.isArray(parsed) && parsed.length) {
+              const list = make('ul');for (const gap of parsed) list.append(make('li','',String(gap)));note.append(list);
+            }
+          } catch { note.append(make('pre','',gaps)); }
+        }
+        $('properties').append(note);
+      }
+      if (!model.index.has(selected)) $('properties').append(make('p','note','Reference only. Original JSON below is an ID stub, not a fetched entity.'));
+      for (const [key,value] of Object.entries(e)) {
+        const row = make('div','property');row.append(make('div','property-key',key));
+        if (short(key) === 'localPath') row.append(make('span','locator-label','Original-machine path; not a packaged-file link'));
+        if (short(key) === 'contentUrl' && typeof value === 'string' && value.startsWith('[')) row.append(make('span','locator-label','Malformed URL/list string preserved as supplied'));
+        if (short(key) === 'contentUrl' && typeof value === 'string' && safeLink(value,true) && !/^https?:/i.test(value)) row.append(make('span','locator-label','Crate-relative; keep this page beside the corresponding metadata'));
+        if (key === 'command') { const pre = make('pre','',typeof value === 'string' ? value : JSON.stringify(value,null,2));row.append(pre); }
+        else row.append(renderValue(value,key));
+        $('properties').append(row);
+      }
+      setDetailView(detailView);
+    }
+    function setView(next) {
+      view = next;for (const name of ['map','relations','guide']) $(name+'-view').hidden = name !== next;
+      document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.view === next)));scheduleConnectors();
+    }
+    function setDetailView(next) {
+      detailView = next;$('properties').hidden = next !== 'properties';$('raw-json').hidden = next !== 'raw';
+      document.querySelectorAll('[data-detail]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.detail === next)));
+    }
+    function download(content,type,filename) {
+      const url = URL.createObjectURL(new Blob([content],{type})), a = make('a');
+      a.href = url;a.download = filename;document.body.append(a);a.click();a.remove();setTimeout(() => URL.revokeObjectURL(url),2000);
+    }
+    async function importFile(file) {
+      if (!file) return;
+      try {
+        const crate = JSON.parse(await file.text());loadCrate(crate,'Loaded locally: '+file.name);message('Loaded '+file.name+'. Nothing was uploaded or changed on disk. Save a portable page to keep this crate embedded.');
+      } catch (error) { message('Could not load '+file.name+': '+error.message+'. The previous crate has been kept.',true); }
+      finally { $('file-input').value = ''; }
+    }
+    $('open-file').addEventListener('click',() => $('file-input').click());
+    $('file-input').addEventListener('change',event => importFile(event.target.files[0]));
+    $('search').addEventListener('input',renderList);$('type-filter').addEventListener('change',renderList);
+    document.querySelectorAll('[data-scope]').forEach(b => b.addEventListener('click',() => {scope = b.dataset.scope;renderList();}));
+    document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click',() => setView(b.dataset.view)));
+    document.querySelectorAll('[data-detail]').forEach(b => b.addEventListener('click',() => setDetailView(b.dataset.detail)));
+    $('guide-button').addEventListener('click',() => setView('guide'));
+    $('home').addEventListener('click',() => {if (model) navigate(model.root['@id']);});
+    $('back').addEventListener('click',() => {if (historyPosition > 0) navigate(historyIds[--historyPosition],false);});
+    $('forward').addEventListener('click',() => {if (historyPosition < historyIds.length-1) navigate(historyIds[++historyPosition],false);});
+    $('download-entity').addEventListener('click',() => {if (selected) download(JSON.stringify(entity(selected),null,2)+'\n','application/ld+json','entity.json');});
+    $('copy-id').addEventListener('click',async () => {
+      if (!selected) return;
+      try { await navigator.clipboard.writeText(selected);message('Entity ID copied.'); }
+      catch { message('Clipboard permission is unavailable. Select and copy the ID displayed in the details panel.',true); }
+    });
+    $('download-page').addEventListener('click',() => {
+      if (!currentCrate) {message('Load a metadata file before saving a portable page.',true);return;}
+      const copy = document.documentElement.cloneNode(true);
+      copy.querySelector('#embedded-crate').textContent = JSON.stringify(currentCrate).replace(/</g,'\\u003c');
+      for (const id of ['entity-list','stats','incoming','outgoing','center-node','relation-rows','properties','raw-json','paths']) copy.querySelector('#'+id).replaceChildren();
+      copy.querySelector('#message').hidden = true;copy.querySelector('#drop-target').hidden = true;
+      download('<!doctype html>\n'+copy.outerHTML,'text/html','metadata-explorer.html');message('Portable page saved with the currently loaded metadata embedded. Keep it beside that crate for relative file links.');
+    });
+    document.addEventListener('keydown',event => {
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {event.preventDefault();$('search').focus();}
+    });
+    let dragDepth = 0;
+    document.addEventListener('dragenter',event => {if (Array.from(event.dataTransfer?.types || []).includes('Files')) {event.preventDefault();dragDepth++;$('drop-target').hidden = false;}});
+    document.addEventListener('dragover',event => {if (Array.from(event.dataTransfer?.types || []).includes('Files')) event.preventDefault();});
+    document.addEventListener('dragleave',() => {dragDepth = Math.max(0,dragDepth-1);if (!dragDepth) $('drop-target').hidden = true;});
+    document.addEventListener('drop',event => {if (event.dataTransfer?.files.length) {event.preventDefault();dragDepth = 0;$('drop-target').hidden = true;importFile(event.dataTransfer.files[0]);}});
+    window.addEventListener('resize',scheduleConnectors);
+    new ResizeObserver(scheduleConnectors).observe($('connection-map'));
+    window.addEventListener('hashchange',() => {
+      if (location.hash.startsWith('#entity=') && model) {
+        try {const id = decodeURIComponent(location.hash.slice(8));if (model.index.has(id) || model.referenceIds.has(id)) navigate(id);}
+        catch (error) {message('Invalid entity link: '+error.message,true);}
+      }
+    });
+    try {
+      const initialId = location.hash.startsWith('#entity=') ? decodeURIComponent(location.hash.slice(8)) : null;
+      const crate = JSON.parse($('embedded-crate').textContent);
+      loadCrate(crate,'Embedded metadata',initialId);
+    } catch (error) {message('Could not initialize the embedded crate: '+error.message+'. Use Load another crate to open valid metadata.',true);}
+  </script>
+</body>
+</html>

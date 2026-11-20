@@ -30,7 +30,12 @@ import nextflow.dag.DAG
 import nextflow.file.FileHolder
 import nextflow.processor.TaskProcessor
 import nextflow.processor.TaskRun
+import nextflow.processor.TaskConfig
 import nextflow.prov.ProvWrrocConfig
+import nextflow.prov.ProvFormatsConfig
+import nextflow.prov.ProvObserver
+import nextflow.processor.TaskHandler
+import nextflow.trace.event.TaskEvent
 import nextflow.script.BaseScript
 import nextflow.script.ProcessDef
 import nextflow.script.ScriptBinding
@@ -38,6 +43,8 @@ import nextflow.script.ScriptMeta
 import nextflow.script.ScriptType
 import nextflow.script.WorkflowMetadata
 import nextflow.script.params.FileOutParam
+import nextflow.script.params.ValueInParam
+import nextflow.script.params.EnvOutParam
 import nextflow.util.Duration
 import nextflow.util.MemoryUnit
 import spock.lang.Specification
@@ -99,12 +106,16 @@ class WrrocRendererTest extends Specification {
         return owner
     }
 
-    TaskProcessor processor(String name, BaseScript owner) {
+    TaskProcessor processor(String name, BaseScript owner, Map ext = [:]) {
         final id = ++taskCount
+        final config = Mock(TaskConfig) {
+            get('ext') >> ext
+        }
         Mock(TaskProcessor) {
             getName() >> name
             getOwnerScript() >> owner
             getId() >> id
+            getConfig() >> config
         }
     }
 
@@ -137,6 +148,15 @@ class WrrocRendererTest extends Specification {
             getOutputsByType(FileOutParam) >> [(Mock(FileOutParam)): outputs]
             getExitStatus() >> exitStatus
             getType() >> type
+            getCanBind() >> (exitStatus == 0)
+            isCanBind() >> (exitStatus == 0)
+            getInputs() >> (opts.values ?: [:])
+            getOutputs() >> (opts.outputValues ?: [:])
+            getConfig() >> new TaskConfig([cpus: 2, memory: '1 GB', time: '1h', attempt: 1])
+            getCached() >> (opts.cached ?: false)
+            isCached() >> (opts.cached ?: false)
+            getContainer() >> opts.container
+            isContainerEnabled() >> (opts.containerEnabled ?: false)
             isSuccess() >> (exitStatus == 0)
             getStderr() >> 'oops'
         }
@@ -165,6 +185,7 @@ class WrrocRendererTest extends Specification {
             getWorkDir() >> workDir
             getOutputDir() >> (opts.containsKey('outputDir') ? opts.outputDir : crateDir)
             getUniqueId() >> UUID.fromString('00000000-0000-0000-0000-000000000000')
+            isSuccess() >> (opts.success != false)
         }
     }
 
@@ -175,7 +196,7 @@ class WrrocRendererTest extends Specification {
      * and null values.
      */
     Map<String,Map> render(Map opts = [:], Set<TaskRun> tasks) {
-        final renderer = new WrrocRenderer(new ProvWrrocConfig([file: crateDir.resolve('ro-crate-metadata.json').toString()]))
+        final renderer = new WrrocRenderer(new ProvWrrocConfig([file: crateDir.resolve('ro-crate-metadata.json').toString()] + (opts.wrroc ?: [:])))
         renderer.render(
             session(opts),
             tasks,
@@ -444,6 +465,224 @@ class WrrocRendererTest extends Specification {
         then:
         graph["#task/${t.hash}"].actionStatus == 'http://schema.org/FailedActionStatus'
         graph["#task/${t.hash}"].error == 'oops'
+    }
+
+    def 'should link each annotated tool and version to the task module' () {
+        given:
+        final owner = script(projectDir.resolve('modules/align/main.nf'), ['ALIGN'])
+        final process = processor('WF:ALIGN', owner, [prov: [tools: [
+            [name: 'RSEM', version: '1.3.1', url: 'https://github.com/deweylab/RSEM',
+             author: ['Bo Li', 'Colin Dewey'], format: 'application/x-executable',
+             keywords: ['alignment', 'rnaseq'], description: 'Expression quantification'],
+            [name: 'STAR', version: '2.7.9a', url: 'https://github.com/alexdobin/STAR'],
+            [name: 'Bowtie2', version: '2.4.5', url: 'https://github.com/BenLangmead/bowtie2']
+        ]]])
+        final t = task(process, 'ALIGN (sample)', outputs: ['counts.txt'])
+
+        when:
+        final graph = render([t] as Set)
+
+        then:
+        final moduleId = '#process-step/WF:ALIGN/software'
+        graph["#task/${t.hash}"].instrument == ['@id': moduleId]
+        graph['#process-step/WF:ALIGN'].workExample == ['@id': moduleId]
+        graph[moduleId].isBasedOn == ['@id': '#module/modules/align/main.nf/ALIGN']
+        graph[moduleId].hasPart == (0..2).collect { ['@id': "${moduleId}/tool/${it}".toString()] }
+        graph["${moduleId}/tool/0"].softwareVersion == '1.3.1'
+        graph["${moduleId}/tool/0"].url == 'https://github.com/deweylab/RSEM'
+        graph["${moduleId}/tool/0"].author == [
+            ['@type': 'Person', name: 'Bo Li'], ['@type': 'Person', name: 'Colin Dewey']
+        ]
+        graph["${moduleId}/tool/0"].encodingFormat == 'application/x-executable'
+        graph["${moduleId}/tool/0"].keywords == ['alignment', 'rnaseq']
+        graph["${moduleId}/tool/1"].softwareVersion == '2.7.9a'
+        graph["${moduleId}/tool/2"].softwareVersion == '2.4.5'
+        graph["#task/${t.hash}"].result == ['@id': "#task/${t.hash}/counts.txt".toString()]
+    }
+
+    def 'should isolate annotated versions between aliases of one module' () {
+        given:
+        final owner = script(projectDir.resolve('modules/align/main.nf'), ['ALIGN'])
+        final first = task(processor('WF:FIRST', owner, [prov: [tools: [[name: 'STAR', version: '2.7.9a']]]]), 'first')
+        final second = task(processor('WF:SECOND', owner, [prov: [tools: [[name: 'STAR', version: '2.7.11b']]]]), 'second')
+        final plain = task(processor('WF:PLAIN', owner), 'plain')
+
+        when:
+        final graph = render([first, second, plain] as Set)
+
+        then:
+        graph['#process-step/WF:FIRST/software/tool/0'].softwareVersion == '2.7.9a'
+        graph['#process-step/WF:SECOND/software/tool/0'].softwareVersion == '2.7.11b'
+        graph["#task/${first.hash}"].instrument != graph["#task/${second.hash}"].instrument
+        graph["#task/${plain.hash}"].instrument == ['@id': '#module/modules/align/main.nf/ALIGN']
+    }
+
+    @Unroll
+    def 'should reject malformed tool annotations: #annotation' () {
+        given:
+        final owner = script(projectDir.resolve('main.nf'), ['ALIGN'])
+        final t = task(processor('WF:ALIGN', owner, [prov: annotation]), 'align')
+
+        when:
+        render([t] as Set)
+
+        then:
+        final error = thrown(IllegalArgumentException)
+        error.message.contains("process 'WF:ALIGN'")
+        error.message.contains(reason)
+
+        where:
+        annotation                                           | reason
+        'not a map'                                          | 'expected a map'
+        [tools: 'STAR']                                       | 'tools must be a list'
+        [tools: [[version: '1']]]                              | 'requires a nonempty name'
+        [tools: [[name: 'STAR', version: 2]]]                   | 'version must be'
+        [tools: [[name: 'STAR', url: ['https://example.org']]]]  | 'url must be'
+        [tools: [[name: 'STAR', url: 'javascript:alert(1)']]]    | 'url must be'
+        [tools: [[name: 'STAR', versions: '2']]]                | 'unknown keys'
+    }
+
+    def 'should generate an opt-in preview containing the complete exported graph' () {
+        when:
+        final graph = render([] as Set, wrroc: [preview: true])
+        final html = crateDir.resolve('ro-crate-preview.html').text
+        final matcher = html =~ /(?s)<script id="embedded-crate" type="application\/json">(.*?)<\/script>/
+        assert matcher.find()
+        final embedded = new JsonSlurper().parseText(matcher.group(1))
+
+        then:
+        embedded['@graph'].collectEntries { [(it['@id']): it] } == graph
+    }
+
+    def 'should preserve runtime scripts and resolved values without copying references or logs' () {
+        given:
+        final owner = script(projectDir.resolve('modules/align.nf'), ['ALIGN'])
+        final readLength = Mock(ValueInParam) { getName() >> 'read_length' }
+        final reference = Mock(ValueInParam) { getName() >> 'reference_base' }
+        final strand = Mock(EnvOutParam) { getName() >> 'STRAND' }
+        final refs = Files.createDirectories(root.resolve('reference-cache'))
+        refs.resolve('large-index').text = 'not packaged'
+        final t = task(processor('WF:ALIGN', owner), 'ALIGN (sample)',
+            values: [(readLength): 101, (reference): refs.toString()],
+            outputValues: [(strand): 'reverse_stranded'], outputs: ['counts.txt'],
+            container: 'quay.io/example/align:1', containerEnabled: true)
+        final command = "ln -s ${refs}/STAR/primary_100/* .\nalign --forward-prob 0"
+        t.workDir.resolve('.command.sh').text = command
+        t.workDir.resolve('.command.run').text = '# wrapper'
+        t.workDir.resolve('.command.log').text = 'not packaged either'
+
+        when:
+        final graph = render([t] as Set, wrroc: [evidence: true, preview: true, sourceFiles: ['modules/align.nf']])
+        final String taskId = "#task/${t.hash}"
+        final evidence = graph[taskId + '/evidence']
+        final settings = evidence.additionalProperty.collectEntries { [(it.name): it.value] }
+        final copied = crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh")
+
+        then:
+        copied.text == command
+        graph[copied.toString().replace(crateDir.toString() + '/', '')].sha256 ==
+            java.security.MessageDigest.getInstance('SHA-256').digest(command.bytes).encodeHex().toString()
+        graph[taskId].subjectOf == ['@id': taskId + '/evidence']
+        graph[taskId].object.contains(['@id': taskId + '/value/input/0'])
+        graph[taskId + '/value/input/0'].value == 101
+        graph[taskId + '/value/input/1'].value == refs.toString()
+        graph[taskId + '/value/output/0'].value == 'reverse_stranded'
+        settings.cpus == 2
+        settings.memoryBytes == 1024**3
+        settings.container == 'quay.io/example/align:1'
+        settings.containerEnabled
+        settings.containerIdentity.contains('not established')
+        graph['prov-evidence/source/modules/align.nf']
+        !Files.exists(crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.log"))
+        !Files.exists(crateDir.resolve('reference-cache'))
+    }
+
+    def 'should record unavailable cached scripts and unsupported values as capture gaps' () {
+        given:
+        final param = Mock(ValueInParam) { getName() >> 'custom' }
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align',
+            values: [(param): new Object()], cached: true)
+
+        when:
+        final graph = render([t] as Set, wrroc: [evidence: true])
+        final settings = graph["#task/${t.hash}/evidence"].additionalProperty.collectEntries { [(it.name): it.value] }
+
+        then:
+        settings.cached
+        settings.captureStatus == 'partial'
+        settings.captureGaps.contains('.command.sh')
+        settings.captureGaps.contains('unsupported value type')
+        !graph["#task/${t.hash}/value/input/0"]
+    }
+
+    def 'should distinguish a configured image from enabled container execution: #enabled' () {
+        given:
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align',
+            container: image, containerEnabled: enabled)
+
+        when:
+        final graph = render([t] as Set, wrroc: [evidence: true])
+        final settings = graph["#task/${t.hash}/evidence"].additionalProperty.collectEntries { [(it.name): it.value] }
+
+        then:
+        settings.containerEnabled == enabled
+        settings.containerIdentity.startsWith(identity)
+        settings.captureGaps.contains('not container-enabled') == !enabled
+
+        where:
+        enabled | image                                         | identity
+        false   | 'quay.io/example/align:1'                      | 'tag/path'
+        true    | 'quay.io/example/align@sha256:' + ('a' * 64)    | 'digest-qualified'
+    }
+
+    def 'should reuse evidence captured before work directory cleanup and retain failed status without logs' () {
+        given:
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align', exitStatus: 42)
+        t.workDir.resolve('.command.sh').text = 'exit 42'
+        t.workDir.resolve('.command.run').text = '# run'
+        final renderer = new WrrocRenderer(new ProvWrrocConfig([file: crateDir.resolve('ro-crate-metadata.json').toString(), evidence: true]))
+        renderer.evidence.captureTask(t)
+        Files.delete(t.workDir.resolve('.command.sh'))
+        Files.delete(t.workDir.resolve('.command.run'))
+
+        when:
+        renderer.render(session(success: false), [t] as Set, [:], [:])
+        final crate = new JsonSlurper().parse(crateDir.resolve('ro-crate-metadata.json').toFile())
+        final graph = crate['@graph'].collectEntries { [(it['@id']): it] }
+
+        then:
+        crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh").text == 'exit 42'
+        graph["#task/${t.hash}"].actionStatus.endsWith('FailedActionStatus')
+        !graph["#task/${t.hash}"].error.contains('oops')
+        graph['#00000000-0000-0000-0000-000000000000'].actionStatus.endsWith('FailedActionStatus')
+    }
+
+    def 'should render failed workflows only when evidence is enabled and capture before cleanup' () {
+        given:
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align', exitStatus: 42)
+        t.workDir.resolve('.command.sh').text = 'exit 42'
+        t.workDir.resolve('.command.run').text = '# wrapper'
+        final report = crateDir.resolve('ro-crate-metadata.json')
+        final observer = new ProvObserver(new ProvFormatsConfig([wrroc: [file: report.toString(), evidence: enabled]]), [])
+        final handler = Mock(TaskHandler) { getTask() >> t }
+        observer.onFlowCreate(session(success: false))
+        observer.onFlowBegin()
+
+        when:
+        observer.onTaskComplete(new TaskEvent(handler))
+        Files.delete(t.workDir.resolve('.command.sh'))
+        observer.onFlowComplete()
+
+        then:
+        Files.exists(report) == enabled
+        if( enabled ) {
+            assert crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh").text == 'exit 42'
+            final crate = new JsonSlurper().parse(report.toFile())
+            assert crate['@graph'].find { it['@id'] == "#task/${t.hash}".toString() }.actionStatus.endsWith('FailedActionStatus')
+        }
+
+        where:
+        enabled << [false, true]
     }
 
     def 'should record native task as completed' () {

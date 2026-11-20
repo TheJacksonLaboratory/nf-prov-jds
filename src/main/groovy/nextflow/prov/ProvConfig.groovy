@@ -183,6 +183,24 @@ class ProvWrrocConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
+        Write a self-contained, offline ro-crate-preview.html beside the Workflow Run RO-Crate (default: false). Uses the same overwrite policy as the metadata file.
+    ''')
+    final boolean preview
+
+    @ConfigOption
+    @Description('''
+        Preserve task scripts, resolved task values, execution settings and source identity (default: false). Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
+    ''')
+    final boolean evidence
+
+    @ConfigOption
+    @Description('''
+        Explicit project-relative files to snapshot with evidence enabled (default: []). No directories, globs or paths outside the project. Use for relevant local source changes; review these files for secrets.
+    ''')
+    final List<String> sourceFiles
+
+    @ConfigOption
+    @Description('''
         The license for the Workflow Run RO-Crate.
     ''')
     final String license
@@ -206,6 +224,11 @@ class ProvWrrocConfig implements ConfigScope {
     ProvWrrocConfig(Map opts) {
         file = opts.file
         overwrite = opts.overwrite as boolean
+        preview = opts.preview as boolean
+        evidence = opts.evidence as boolean
+        sourceFiles = (opts.sourceFiles as List<String> ?: []).unique()
+        if( sourceFiles && !evidence )
+            throw new IllegalArgumentException('WRROC sourceFiles requires evidence = true')
         license = opts.license
         agent = opts.agent ? new ProvWrrocContactConfig(opts.agent as Map) : null
         organization = opts.organization ? new ProvWrrocContactConfig(opts.organization as Map) : null

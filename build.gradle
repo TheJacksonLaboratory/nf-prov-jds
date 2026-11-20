@@ -15,3 +15,24 @@ nextflowPlugin {
         'nextflow.prov.ProvObserverFactory'
     ]
 }
+
+tasks.register('generateExplorer', JavaExec) {
+    group = 'reporting'
+    description = 'Generate an offline HTML explorer from an existing RO-Crate (-Pmetadata=...).'
+    dependsOn 'classes', 'extensionPoints', 'generateSpec'
+    // Nextflow supplies Groovy at runtime; standalone generation needs it explicitly.
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    mainClass = 'nextflow.prov.renderers.MetadataExplorer'
+    doFirst {
+        if( !project.hasProperty('metadata') )
+            throw new GradleException('Specify -Pmetadata=/path/to/ro-crate-metadata.json')
+        final input = project.file(project.property('metadata'))
+        final output = project.findProperty('output')
+            ? project.file(project.property('output'))
+            : new File(input.parentFile, 'ro-crate-preview.html')
+        args = [input.absolutePath, output.absolutePath]
+        if( project.findProperty('overwrite') == 'true' )
+            args += '--overwrite'
+    }
+}

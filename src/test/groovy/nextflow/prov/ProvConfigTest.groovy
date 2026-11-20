@@ -26,6 +26,14 @@ import spock.lang.Unroll
  */
 class ProvConfigTest extends Specification {
 
+    def 'should require opt-in evidence before selecting source snapshots' () {
+        when:
+        new ProvWrrocConfig([sourceFiles: ['main.nf']])
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
     @Unroll
     def 'should declare config option prov.#name' () {
         given:
@@ -36,6 +44,9 @@ class ProvConfigTest extends Specification {
 
         where:
         name << [
+            'formats.wrroc.preview',
+            'formats.wrroc.evidence',
+            'formats.wrroc.sourceFiles',
             'formats.wrroc.license',
             'formats.wrroc.publisher',
             'formats.wrroc.agent.name',
