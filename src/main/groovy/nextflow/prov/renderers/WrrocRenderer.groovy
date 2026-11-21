@@ -70,10 +70,13 @@ class WrrocRenderer implements Renderer {
 
     private String repository
 
+    private final String configuredCodeRepository
+
     // List of contact points (people, organizations) to be added
     private List<Map> contactPoints = []
 
     WrrocRenderer(ProvWrrocConfig config, Path directory=null) {
+        configuredCodeRepository = config.codeRepository
         path = ProvHelper.resolveReportPath(config.file, directory)
         overwrite = config.overwrite
 
@@ -106,6 +109,7 @@ class WrrocRenderer implements Renderer {
         this.projectDir = metadata.projectDir
         this.repository = metadata.repository
         this.normalizer = new PathNormalizer(metadata)
+        final codeRepository = metadata.repository ?: configuredCodeRepository
 
         final manifest = metadata.manifest
         final scriptFile = metadata.getScriptFile()
@@ -168,8 +172,8 @@ class WrrocRenderer implements Renderer {
         final organizeActionId = "${mainScriptId}#organize"
         metadata.scriptFile.copyTo(crateDir)
 
-        if( !metadata.repository )
-            log.warn "Could not determine pipeline repository URL for Workflow Run RO-Crate -- launch the pipeline with canonical URL (e.g. `nextflow run nextflow-io/hello`) to ensure that the pipeline repository URL is recorded in the crate"
+        if( !codeRepository )
+            log.warn "Could not determine pipeline repository URL for Workflow Run RO-Crate -- configure prov.formats.wrroc.codeRepository or launch the pipeline with canonical URL (e.g. `nextflow run nextflow-io/hello`)"
 
         // -- parameter schema
         final schemaPath = scriptFile.getParent().resolve("nextflow_schema.json")
@@ -720,7 +724,7 @@ class WrrocRenderer implements Renderer {
                     "description"        : manifest.description,
                     "programmingLanguage": ["@id": "https://w3id.org/workflowhub/workflow-ro-crate#nextflow"],
                     "creator"            : creators ? asReferences(creators) : manifest.author,
-                    "codeRepository"     : metadata.repository,
+                    "codeRepository"     : codeRepository,
                     "version"            : metadata.commitId ?: manifest.version,
                     "license"            : manifest.license,
                     "url"                : metadata.repository ? normalizePath(metadata.scriptFile) : null,
@@ -845,15 +849,7 @@ class WrrocRenderer implements Renderer {
                     throw new IllegalArgumentException(location + "${key} must be a string or list of nonempty strings")
             }
             if( tool.url ) {
-                URI uri
-                try {
-                    uri = new URI(tool.url.toString())
-                }
-                catch( URISyntaxException e ) {
-                    throw new IllegalArgumentException(location + 'url must be an absolute HTTP(S) URL', e)
-                }
-                if( !(uri.scheme?.toLowerCase() in ['http', 'https']) || !uri.host || uri.userInfo )
-                    throw new IllegalArgumentException(location + 'url must be an absolute HTTP(S) URL without credentials')
+                ProvHelper.requireHttpUrl(tool.url, location + 'url')
             }
             result.add(new LinkedHashMap(tool))
         }

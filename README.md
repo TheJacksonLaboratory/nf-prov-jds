@@ -84,6 +84,9 @@ Configuration scope for the desired output formats. The following formats are av
   settings and source identity, with explicit capture gaps. Large external
   datasets are not bundled by this feature; review scripts/values for sensitive
   information before enabling it.
+  For local launches, `prov.formats.wrroc.codeRepository` provides a validated
+  repository URL fallback without changing source revision or local file handling.
+  See [repository URL configuration](docs/WRROC.md#repository-url-for-local-launches).
 
 See the [nf-prov-test](./nf-prov-test) directory for an example pipeline that produces every provenance format.
 

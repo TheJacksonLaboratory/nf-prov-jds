@@ -18,6 +18,7 @@ The following config options are supported:
 - `prov.formats.wrroc.organization.phone`
 - `prov.formats.wrroc.organization.ror`
 - `prov.formats.wrroc.license`
+- `prov.formats.wrroc.codeRepository`
 - `prov.formats.wrroc.publisher`
 - `prov.formats.wrroc.preview`
 - `prov.formats.wrroc.evidence`
@@ -50,6 +51,43 @@ prov {
     }
 }
 ```
+
+## Repository URL for local launches
+
+Use `prov.formats.wrroc.codeRepository` to declare a repository URL when launching
+from a local checkout:
+
+```groovy
+prov {
+    directory = '.'
+    formats {
+        wrroc {
+            file = 'ro-crate-metadata.json'
+            overwrite = true
+            evidence = true
+            preview = true
+            license = 'https://spdx.org/licenses/MIT'
+            codeRepository = 'https://github.com/OWNER/PIPELINE'
+        }
+    }
+}
+```
+
+Use the license that actually applies to your workflow. Both settings are quoted
+strings. `codeRepository` must be an absolute HTTP(S) URL without credentials.
+Nextflow's detected repository takes precedence; the configured URL is a fallback.
+It is written to the workflow entity's `codeRepository` field and resolves the
+missing-repository warning without requiring a remote launch.
+
+The fallback does not invent a commit, map local files to unverified remote
+revision URLs, or change local file packaging. `manifest.homePage` is not
+automatically treated as a code repository. With evidence enabled, the separately
+captured Git commit/status still describes the actual checkout.
+
+Valid license/repository settings resolve their missing-metadata warnings, but
+genuine capture gaps and dirty working trees continue to warn. A release branch
+or tag does not by itself imply a clean working tree. Rebuild/reinstall this fork
+after adding the option; older plugin binaries do not consume it.
 
 ## Per-process software annotations
 
@@ -146,6 +184,10 @@ prov {
 Set `outputDir` to the publication root (for example `params.pubdir`) so published
 outputs are inside the crate. Outputs outside the crate are excluded with a
 warning by the existing renderer.
+
+Files matched by overlapping task output declarations are represented once per
+task. For example, `path '*stats'` and a named tuple output matching the same stats
+file share a single data entity; distinct outputs and their lineage are retained.
 
 ### What is preserved
 

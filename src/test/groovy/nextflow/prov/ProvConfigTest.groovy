@@ -34,6 +34,19 @@ class ProvConfigTest extends Specification {
         thrown(IllegalArgumentException)
     }
 
+    def 'should reject invalid repository URL #url' () {
+        when:
+        new ProvWrrocConfig([codeRepository: url])
+
+        then:
+        final error = thrown(IllegalArgumentException)
+        error.message.contains('prov.formats.wrroc.codeRepository')
+
+        where:
+        url << ['', 'github.com/owner/repo', 'javascript:alert(1)',
+            'https://user:password@example.org/repo', ['https://example.org/repo']]
+    }
+
     @Unroll
     def 'should declare config option prov.#name' () {
         given:
@@ -48,6 +61,7 @@ class ProvConfigTest extends Specification {
             'formats.wrroc.evidence',
             'formats.wrroc.sourceFiles',
             'formats.wrroc.license',
+            'formats.wrroc.codeRepository',
             'formats.wrroc.publisher',
             'formats.wrroc.agent.name',
             'formats.wrroc.agent.orcid',

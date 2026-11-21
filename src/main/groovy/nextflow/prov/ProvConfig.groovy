@@ -22,6 +22,7 @@ import nextflow.config.spec.ConfigOption
 import nextflow.config.spec.ConfigScope
 import nextflow.config.spec.ScopeName
 import nextflow.script.dsl.Description
+import nextflow.prov.util.ProvHelper
 
 @ScopeName('prov')
 @Description('''
@@ -205,6 +206,12 @@ class ProvWrrocConfig implements ConfigScope {
     ''')
     final String license
 
+    @ConfigOption
+    @Description('''
+        Absolute HTTP(S) source repository URL without credentials, used when Nextflow did not detect a repository. Does not infer a source revision or change local file packaging.
+    ''')
+    final String codeRepository
+
     @Description('''
         The agent (person) running the workflow.
     ''')
@@ -230,6 +237,9 @@ class ProvWrrocConfig implements ConfigScope {
         if( sourceFiles && !evidence )
             throw new IllegalArgumentException('WRROC sourceFiles requires evidence = true')
         license = opts.license
+        codeRepository = opts.codeRepository != null
+            ? ProvHelper.requireHttpUrl(opts.codeRepository, 'prov.formats.wrroc.codeRepository')
+            : null
         agent = opts.agent ? new ProvWrrocContactConfig(opts.agent as Map) : null
         organization = opts.organization ? new ProvWrrocContactConfig(opts.organization as Map) : null
         publisher = opts.publisher

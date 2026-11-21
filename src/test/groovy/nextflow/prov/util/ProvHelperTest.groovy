@@ -21,6 +21,7 @@ import java.nio.file.Path
 import nextflow.exception.AbortOperationException
 import nextflow.processor.TaskRun
 import nextflow.script.ScriptType
+import nextflow.script.params.FileOutParam
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -81,6 +82,23 @@ class ProvHelperTest extends Specification {
 
         expect:
         ProvHelper.getTaskOutputs(task) == [Path.of('/work/ab/a.txt'), Path.of('/work/ab/outdir')]
+    }
+
+    def 'should list each file once when output declarations overlap' () {
+        given:
+        final stats = Path.of('/work/ab/rsem_aln_mm10_RNA.stats')
+        final genes = Path.of('/work/ab/mm10_RNA.genes.results')
+        final task = Mock(TaskRun) {
+            getOutputsByType(FileOutParam) >> [
+                (Mock(FileOutParam)): [stats],
+                (Mock(FileOutParam)): stats,
+                (Mock(FileOutParam)): [genes],
+                (Mock(FileOutParam)): [genes]
+            ]
+        }
+
+        expect:
+        ProvHelper.getTaskOutputs(task) == [stats, genes]
     }
 
     def 'should get paths nested in a value' () {

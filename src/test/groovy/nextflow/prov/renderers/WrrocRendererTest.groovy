@@ -554,6 +554,43 @@ class WrrocRendererTest extends Specification {
         embedded['@graph'].collectEntries { [(it['@id']): it] } == graph
     }
 
+    def 'should render overlapping file outputs once without losing lineage (preview: #preview)' () {
+        given:
+        final align = processor('WF:ALIGN', script(projectDir.resolve('modules/align.nf'), ['ALIGN']))
+        final t1 = task(align, 'ALIGN (sample)', outputs: [
+            'rsem_aln_mm10_RNA.stats', 'mm10_RNA.genes.results',
+            'rsem_aln_mm10_RNA.stats', 'mm10_RNA.genes.results'
+        ])
+        final stats = t1.workDir.resolve('rsem_aln_mm10_RNA.stats')
+        final genes = t1.workDir.resolve('mm10_RNA.genes.results')
+        final t2 = task(processor('WF:COUNTS', script(projectDir.resolve('modules/counts.nf'), ['COUNTS'])),
+            'counts', inputs: [genes], outputs: ['counts.txt'])
+        final published = Files.createFile(crateDir.resolve('rsem_aln_mm10_RNA.stats'))
+
+        when:
+        final graph = render([t1, t2] as Set, wrroc: [preview: preview],
+            publishedFiles: [(published): stats])
+        final String statsId = "#task/${t1.hash}/rsem_aln_mm10_RNA.stats"
+        final String genesId = "#task/${t1.hash}/mm10_RNA.genes.results"
+
+        then:
+        graph["#task/${t1.hash}"].result == [['@id': statsId], ['@id': genesId]]
+        graph["#task/${t2.hash}"].object == ['@id': genesId]
+        graph["#publish/${t1.hash}/rsem_aln_mm10_RNA.stats"].object == ['@id': statsId]
+        graph["#publish/${t1.hash}/rsem_aln_mm10_RNA.stats"].result == ['@id': 'rsem_aln_mm10_RNA.stats']
+        if( preview ) {
+            final html = crateDir.resolve('ro-crate-preview.html').text
+            final matcher = html =~ /(?s)<script id="embedded-crate" type="application\/json">(.*?)<\/script>/
+            assert matcher.find()
+            final embedded = new JsonSlurper().parseText(matcher.group(1))
+            assert embedded['@graph'].count { it['@id'] == statsId } == 1
+            assert embedded['@graph'].collectEntries { [(it['@id']): it] } == graph
+        }
+
+        where:
+        preview << [false, true]
+    }
+
     def 'should preserve runtime scripts and resolved values without copying references or logs' () {
         given:
         final owner = script(projectDir.resolve('modules/align.nf'), ['ALIGN'])
@@ -771,6 +808,36 @@ class WrrocRendererTest extends Specification {
         !Files.exists(crateDir.resolve('scripts/meshing.py'))
         graph[url]['@type'] == 'File'
         graph["#task/${t.hash}"].object == ['@id': url]
+    }
+
+    def 'should export a configured repository for local runs without inventing revision URLs or changing packaging' () {
+        given:
+        final input = Files.createDirectories(projectDir.resolve('scripts')).resolve('meshing.py')
+        input.text = 'print(1)'
+        final t = task(processor('FOO', script(projectDir.resolve('main.nf'), ['FOO'])), 'foo', inputs: [input])
+        final repository = 'https://github.com/example/pipeline'
+
+        when:
+        final graph = render([t] as Set, wrroc: [codeRepository: repository, preview: true])
+
+        then:
+        graph['main.nf'].codeRepository == repository
+        graph['main.nf'].version == '1.0.0'
+        !graph['main.nf'].containsKey('url')
+        crateDir.resolve('scripts/meshing.py').text == 'print(1)'
+        graph["#task/${t.hash}"].object == ['@id': 'scripts/meshing.py']
+        crateDir.resolve('ro-crate-preview.html').text.contains(repository)
+    }
+
+    def 'should prefer Nextflow repository identity over the configured fallback' () {
+        when:
+        final graph = render([] as Set,
+            repository: 'https://github.com/example/detected', commitId: 'abc123',
+            wrroc: [codeRepository: 'https://github.com/example/configured'])
+
+        then:
+        graph['main.nf'].codeRepository == 'https://github.com/example/detected'
+        graph['main.nf'].version == 'abc123'
     }
 
     def 'should represent remote input files specified by params as file entities' () {

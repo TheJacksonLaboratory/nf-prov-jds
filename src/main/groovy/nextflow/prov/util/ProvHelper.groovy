@@ -38,6 +38,23 @@ import nextflow.script.params.FileOutParam
 @CompileStatic
 class ProvHelper {
 
+    static String requireHttpUrl(Object value, String label) {
+        final message = "${label} must be an absolute HTTP(S) URL without credentials".toString()
+        if( !(value instanceof CharSequence) )
+            throw new IllegalArgumentException(message)
+        final url = value.toString()
+        URI uri
+        try {
+            uri = new URI(url)
+        }
+        catch( URISyntaxException e ) {
+            throw new IllegalArgumentException(message, e)
+        }
+        if( !(uri.scheme?.toLowerCase(Locale.ROOT) in ['http', 'https']) || !uri.host || uri.userInfo )
+            throw new IllegalArgumentException(message)
+        return url
+    }
+
     /**
      * Check whether a file already exists and throw an
      * error if it cannot be overwritten.
@@ -145,7 +162,7 @@ class ProvHelper {
     }
 
     /**
-     * Get the list of output files for a task.
+     * Get distinct output files for a task, including overlapping declarations.
      *
      * @param task
      */
@@ -155,7 +172,8 @@ class ProvHelper {
         return task
             .getOutputsByType(FileOutParam)
             .values()
-            .flatten() as List<Path>
+            .flatten()
+            .unique() as List<Path>
     }
 
     /**
