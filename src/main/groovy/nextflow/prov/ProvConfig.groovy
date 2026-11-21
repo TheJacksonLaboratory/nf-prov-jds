@@ -190,7 +190,7 @@ class ProvWrrocConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        Preserve task scripts, resolved task values, execution settings and source identity (default: false). Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
+        Embed expanded task scripts, resolved task values, execution settings and source identity (default: false). Execution wrappers are not collected. Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
     ''')
     final boolean evidence
 

@@ -591,7 +591,7 @@ class WrrocRendererTest extends Specification {
         preview << [false, true]
     }
 
-    def 'should preserve runtime scripts and resolved values without copying references or logs' () {
+    def 'should embed named runtime scripts and resolved values without copying task files references or logs' () {
         given:
         final owner = script(projectDir.resolve('modules/align.nf'), ['ALIGN'])
         final readLength = Mock(ValueInParam) { getName() >> 'read_length' }
@@ -601,24 +601,37 @@ class WrrocRendererTest extends Specification {
         refs.resolve('large-index').text = 'not packaged'
         final t = task(processor('WF:ALIGN', owner), 'ALIGN (sample)',
             values: [(readLength): 101, (reference): refs.toString()],
-            outputValues: [(strand): 'reverse_stranded'], outputs: ['counts.txt'],
+            outputValues: [(strand): 'reverse_stranded'], outputs: ['counts.txt', 'script'],
             container: 'quay.io/example/align:1', containerEnabled: true)
-        final command = "ln -s ${refs}/STAR/primary_100/* .\nalign --forward-prob 0"
+        final command = "ln -s ${refs}/STAR/primary_100/* .\nalign --forward-prob 0\n# \u03bb </script><img src=x onerror=alert(1)>\n"
         t.workDir.resolve('.command.sh').text = command
-        t.workDir.resolve('.command.run').text = '# wrapper'
+        t.workDir.resolve('.command.run').text = '# wrapper marker must not be exported'
         t.workDir.resolve('.command.log').text = 'not packaged either'
 
         when:
         final graph = render([t] as Set, wrroc: [evidence: true, preview: true, sourceFiles: ['modules/align.nf']])
         final String taskId = "#task/${t.hash}"
+        final String scriptId = "#task-script/${t.hash}"
         final evidence = graph[taskId + '/evidence']
         final settings = evidence.additionalProperty.collectEntries { [(it.name): it.value] }
-        final copied = crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh")
+        final script = graph[scriptId]
+        final html = crateDir.resolve('ro-crate-preview.html').text
+        final matcher = html =~ /(?s)<script id="embedded-crate" type="application\/json">(.*?)<\/script>/
+        assert matcher.find()
+        final embedded = new JsonSlurper().parseText(matcher.group(1))
 
         then:
-        copied.text == command
-        graph[copied.toString().replace(crateDir.toString() + '/', '')].sha256 ==
-            java.security.MessageDigest.getInstance('SHA-256').digest(command.bytes).encodeHex().toString()
+        script.text == command
+        script.name == 'ALIGN (sample): expanded task script'
+        script['@type'] == 'SoftwareSourceCode'
+        script.about == ['@id': taskId]
+        script.sha256 == java.security.MessageDigest.getInstance('SHA-256').digest(command.getBytes('UTF-8')).encodeHex().toString()
+        script.contentSize == command.getBytes('UTF-8').length
+        evidence.hasPart == ['@id': scriptId]
+        graph[taskId + '/script']['@type'] == 'CreativeWork'
+        embedded['@graph'].find { it['@id'] == scriptId }.text == command
+        !html.contains('</script><img src=x')
+        !html.contains('wrapper marker must not be exported')
         graph[taskId].subjectOf == ['@id': taskId + '/evidence']
         graph[taskId].object.contains(['@id': taskId + '/value/input/0'])
         graph[taskId + '/value/input/0'].value == 101
@@ -630,7 +643,7 @@ class WrrocRendererTest extends Specification {
         settings.containerEnabled
         settings.containerIdentity.contains('not established')
         graph['prov-evidence/source/modules/align.nf']
-        !Files.exists(crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.log"))
+        !Files.exists(crateDir.resolve('prov-evidence/tasks'))
         !Files.exists(crateDir.resolve('reference-cache'))
     }
 
@@ -648,8 +661,25 @@ class WrrocRendererTest extends Specification {
         settings.cached
         settings.captureStatus == 'partial'
         settings.captureGaps.contains('.command.sh')
+        !settings.captureGaps.contains('.command.run')
         settings.captureGaps.contains('unsupported value type')
         !graph["#task/${t.hash}/value/input/0"]
+    }
+
+    def 'should report invalid script encoding rather than embedding replacement characters' () {
+        given:
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align')
+        Files.write(t.workDir.resolve('.command.sh'), [0xc3, 0x28] as byte[])
+
+        when:
+        final graph = render([t] as Set, wrroc: [evidence: true])
+        final settings = graph["#task/${t.hash}/evidence"].additionalProperty.collectEntries { [(it.name): it.value] }
+
+        then:
+        settings.captureStatus == 'partial'
+        settings.captureGaps.contains('not valid UTF-8')
+        !graph["#task-script/${t.hash}"]
+        !Files.exists(crateDir.resolve('prov-evidence'))
     }
 
     def 'should distinguish a configured image from enabled container execution: #enabled' () {
@@ -688,7 +718,8 @@ class WrrocRendererTest extends Specification {
         final graph = crate['@graph'].collectEntries { [(it['@id']): it] }
 
         then:
-        crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh").text == 'exit 42'
+        graph["#task-script/${t.hash}"].text == 'exit 42'
+        !Files.exists(crateDir.resolve('prov-evidence/tasks'))
         graph["#task/${t.hash}"].actionStatus.endsWith('FailedActionStatus')
         !graph["#task/${t.hash}"].error.contains('oops')
         graph['#00000000-0000-0000-0000-000000000000'].actionStatus.endsWith('FailedActionStatus')
@@ -713,8 +744,8 @@ class WrrocRendererTest extends Specification {
         then:
         Files.exists(report) == enabled
         if( enabled ) {
-            assert crateDir.resolve("prov-evidence/tasks/${t.hash}/.command.sh").text == 'exit 42'
             final crate = new JsonSlurper().parse(report.toFile())
+            assert crate['@graph'].find { it['@id'] == "#task-script/${t.hash}".toString() }.text == 'exit 42'
             assert crate['@graph'].find { it['@id'] == "#task/${t.hash}".toString() }.actionStatus.endsWith('FailedActionStatus')
         }
 

@@ -18,6 +18,9 @@ import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 import groovy.json.JsonOutput
@@ -63,18 +66,9 @@ class RunEvidence {
         final gaps = [] as List<String>
         final parts = [] as List<Map>
         if( task.type == ScriptType.SCRIPTLET ) {
-            for( final filename : ['.command.sh', '.command.run'] ) {
-                if( task.workDir == null ) {
-                    gaps.add("${filename}: task work directory unavailable".toString())
-                    continue
-                }
-                final target = "prov-evidence/tasks/${key}/${filename}".toString()
-                final file = copy(task.workDir.resolve(filename), target, gaps)
-                if( file ) {
-                    file['about'] = ['@id': taskId]
-                    parts.add(['@id': file['@id']])
-                }
-            }
+            final script = captureScript(task, taskId, gaps)
+            if( script )
+                parts.add(['@id': script['@id']])
         }
         final inputs = values(task.inputs ?: [:], true, task.hasTypedInputsOutputs(), taskId, gaps)
         final outputs = task.canBind ? values(task.outputs ?: [:], false, task.hasTypedInputsOutputs(), taskId, gaps) : []
@@ -115,7 +109,7 @@ class RunEvidence {
             '@type': 'CreativeWork',
             'name': "Execution evidence: ${task.name}".toString(),
             'about': ['@id': taskId],
-            'description': 'Generated task scripts, not a trace of every command executed internally by tools. Native exec tasks have no shell wrapper. Scalar values are observations, not inferred cross-task dependency edges.',
+            'description': 'Expanded task script embedded in metadata, not a trace of every command executed internally by tools. Execution wrappers are not collected. Native exec tasks have no shell script. Scalar values are observations, not inferred cross-task dependency edges.',
             'hasPart': parts,
             'additionalProperty': settings + [property('captureStatus', gaps ? 'partial' : 'captured'),
                 property('captureGaps', JsonOutput.toJson(gaps))]
@@ -126,6 +120,45 @@ class RunEvidence {
         for( final gap : gaps )
             log.warn "WRROC evidence for ${task.name}: ${gap}"
         return result
+    }
+
+    private Map captureScript(TaskRun task, String taskId, List<String> gaps) {
+        if( task.workDir == null ) {
+            gaps.add('.command.sh: task work directory unavailable')
+            return null
+        }
+        final source = task.workDir.resolve('.command.sh')
+        if( !Files.isRegularFile(source) ) {
+            gaps.add("Unavailable task script: ${source}".toString())
+            return null
+        }
+        byte[] bytes
+        try {
+            bytes = Files.readAllBytes(source)
+        }
+        catch( NoSuchFileException e ) {
+            gaps.add("Task script disappeared before capture: ${source}".toString())
+            return null
+        }
+        String text
+        try {
+            text = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString()
+        }
+        catch( CharacterCodingException e ) {
+            gaps.add("Task script is not valid UTF-8: ${source}".toString())
+            return null
+        }
+        final script = [
+            '@id': "#task-script/${taskKey(task)}".toString(), '@type': 'SoftwareSourceCode',
+            'name': "${task.name}: expanded task script".toString(),
+            'about': ['@id': taskId],
+            'description': 'Generated .command.sh captured at task completion/cache notification; not proof that every conditional branch ran.',
+            'encodingFormat': 'text/x-shellscript', 'text': text,
+            'sha256': HexFormat.of().formatHex(MessageDigest.getInstance('SHA-256').digest(bytes)),
+            'contentSize': bytes.length
+        ] as Map
+        entities.add(script)
+        return script
     }
 
     private List<Map> values(Map parameters, boolean input, boolean typed, String taskId, List<String> gaps) {

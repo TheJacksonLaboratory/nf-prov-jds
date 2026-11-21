@@ -29,7 +29,7 @@
     .entity-row{width:100%;display:flex;gap:9px;align-items:start;border:1px solid transparent;background:transparent;text-align:left;border-radius:8px;padding:9px 7px}
     .entity-row:hover{background:#f2f6fc}.entity-row[aria-current=true]{background:#eaf1ff;border-color:#b9cef5}.entity-row .row-name{display:block;font-size:12px;font-weight:600;overflow-wrap:anywhere;line-height:1.4}.row-sub{font-size:10px;color:var(--muted)}
     .type-icon{background:color-mix(in srgb,var(--type-color) 12%,white);color:var(--type-color);border:1px solid color-mix(in srgb,var(--type-color) 25%,white);width:27px;height:27px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;font-size:10px;font-weight:800}
-    .type-Dataset{--type-color:var(--dataset)}.type-Computation{--type-color:var(--computation)}.type-Software,.type-Workflow{--type-color:var(--software)}.type-ROCrate{--type-color:var(--crate)}.type-Schema,.type-Other,.type-Reference,.type-Parameter,.type-Value,.type-Agent,.type-Process{--type-color:var(--other)}
+    .type-Dataset{--type-color:var(--dataset)}.type-Computation{--type-color:var(--computation)}.type-Software,.type-Workflow,.type-Script{--type-color:var(--software)}.type-ROCrate{--type-color:var(--crate)}.type-Schema,.type-Other,.type-Reference,.type-Parameter,.type-Value,.type-Agent,.type-Process{--type-color:var(--other)}
     .main{padding:20px;min-width:0}.main-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}.main-header h2{font-size:16px;margin:0}.history{display:flex;gap:5px}.history .button{padding:5px 10px}
     .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:0}.tabs button{border:0;background:transparent;padding:10px 13px;font-size:12px;font-weight:650;color:var(--muted);border-bottom:2px solid transparent}.tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
     .panel{border:1px solid var(--border);background:#fff;border-radius:0 0 12px 12px;padding:17px;box-shadow:0 3px 12px #243c5910}.graph-help{font-size:12px;color:var(--muted);margin:0 0 17px}
@@ -50,7 +50,8 @@
     .detail-actions{display:flex;gap:6px;margin:12px 0 17px;flex-wrap:wrap}.detail-actions .button{font-size:11px;padding:6px 9px}
     .detail-tabs{display:flex;gap:12px;border-bottom:1px solid var(--border);margin-bottom:13px}.detail-tabs button{font-size:12px;border:0;border-bottom:2px solid transparent;padding:8px 0;background:transparent;color:var(--muted)}.detail-tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);font-weight:700}
     .property{border-bottom:1px solid #edf0f5;padding:10px 0}.property:first-child{padding-top:0}.property-key{font-size:11px;font-weight:700;overflow-wrap:anywhere;margin-bottom:5px}.property-value{font-size:11px;overflow-wrap:anywhere;white-space:pre-wrap;color:#496079}
-    .property-value pre,#raw-json{white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f4f7fb;border:1px solid #e1e8f1;border-radius:6px;padding:9px;max-height:360px;overflow:auto;margin:5px 0}
+    .property pre,.expanded-commands pre,#raw-json{white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f4f7fb;border:1px solid #e1e8f1;border-radius:6px;padding:9px;max-height:360px;overflow:auto;margin:5px 0}
+    .expanded-commands{margin:14px 0}.expanded-commands h3{font-size:13px;margin:0 0 8px}.expanded-commands summary{font-size:11px;cursor:pointer;overflow-wrap:anywhere}.expanded-commands .subtle{font-size:10px}
     .value-link{border:1px solid #cddbf1;border-radius:5px;background:#f4f8ff;color:#2456a6;padding:3px 6px;font-size:10px;text-align:left;white-space:normal;overflow-wrap:anywhere;margin:2px 3px 2px 0}
     .locator-label{font-size:10px;font-weight:700;display:block;color:#9c6528;margin-bottom:3px}.value-details summary{cursor:pointer;font-size:11px;font-weight:600;color:#466184}.value-details{margin:5px 0}
     .table-scroll{overflow:auto;max-height:600px}table{border-collapse:collapse;width:100%;font-size:12px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;background:#f3f6fb;position:sticky;top:0}th,td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top}td button{font-size:11px;color:#245ad1;background:transparent;border:0;text-align:left;padding:0;overflow-wrap:anywhere}
@@ -136,8 +137,8 @@
   <script id="explorer-code">
     'use strict';
     const $ = id => document.getElementById(id);
-    const labels = {ROCrate:'Crate',Dataset:'Dataset',Computation:'Execution',Software:'Software',Workflow:'Workflow',Process:'Process step',Parameter:'Parameter',Value:'Value',Agent:'Agent',Schema:'Schema',Other:'Other',Reference:'Reference only'};
-    const abbreviations = {ROCrate:'RO',Dataset:'DS',Computation:'EX',Software:'SW',Workflow:'WF',Process:'PS',Parameter:'PA',Value:'VA',Agent:'AG',Schema:'SC',Other:'..',Reference:'?'};
+    const labels = {ROCrate:'Crate',Dataset:'Dataset',Computation:'Execution',Software:'Software',Script:'Task script',Workflow:'Workflow',Process:'Process step',Parameter:'Parameter',Value:'Value',Agent:'Agent',Schema:'Schema',Other:'Other',Reference:'Reference only'};
+    const abbreviations = {ROCrate:'RO',Dataset:'DS',Computation:'EX',Software:'SW',Script:'SH',Workflow:'WF',Process:'PS',Parameter:'PA',Value:'VA',Agent:'AG',Schema:'SC',Other:'..',Reference:'?'};
     let model, selected, historyIds = [], historyPosition = -1, scope = 'all', view = 'map', detailView = 'properties', sourceLabel = 'Embedded metadata', currentCrate;
     const make = (tag, className, text) => {
       const el = document.createElement(tag);
@@ -152,6 +153,7 @@
       const types = values(e['@type']).map(short);
       if (types.includes('ROCrate') || e['@id'] === './' && types.includes('Dataset')) return 'ROCrate';
       if (types.includes('ComputationalWorkflow')) return 'Workflow';
+      if (types.includes('SoftwareSourceCode') && typeof e.text === 'string' && e.encodingFormat === 'text/x-shellscript') return 'Script';
       if (types.includes('FormalParameter')) return 'Parameter';
       if (types.includes('PropertyValue')) return 'Value';
       if (types.includes('HowToStep')) return 'Process';
@@ -373,6 +375,22 @@
       $('detail-name').textContent = nameOf(e);$('detail-id').textContent = selected;
       $('detail-description').textContent = typeof e.description === 'string' ? e.description : !model.index.has(selected) ? 'This ID is referenced by the graph but has no entity definition here.' : '';
       $('properties').replaceChildren();$('raw-json').textContent = JSON.stringify(e,null,2);$('copy-id').disabled = false;$('download-entity').disabled = false;
+      if (type !== 'Script') {
+        const resolve = refs => values(refs).map(ref => model.index.get(typeof ref === 'string' ? ref : ref?.['@id'])).filter(Boolean);
+        const subjects = resolve(e.subjectOf);
+        const candidates = [...resolve(e.hasPart),...subjects,...subjects.flatMap(subject => resolve(subject.hasPart))];
+        const scripts = [...new Map(candidates.filter(candidate => typeOf(candidate) === 'Script').map(script => [script['@id'],script])).values()];
+        if (scripts.length) {
+          const section = make('section','expanded-commands');
+          section.append(make('h3','','Expanded commands'),make('p','subtle','Generated task scripts; not proof that every conditional branch ran.'));
+          for (const script of scripts) {
+            const details = make('details');details.open = scripts.length === 1;
+            details.append(make('summary','',nameOf(script)),make('pre','',script.text));
+            section.append(details);
+          }
+          $('properties').append(section);
+        }
+      }
       const evidenceProperties = new Map(values(e.additionalProperty).map(p => [p?.name,p?.value]));
       if (evidenceProperties.has('captureStatus')) {
         const note = make('div','note','Evidence capture: '+evidenceProperties.get('captureStatus')+'. This describes recorded evidence, not a guarantee of repeatability.');
@@ -393,7 +411,7 @@
         if (short(key) === 'localPath') row.append(make('span','locator-label','Original-machine path; not a packaged-file link'));
         if (short(key) === 'contentUrl' && typeof value === 'string' && value.startsWith('[')) row.append(make('span','locator-label','Malformed URL/list string preserved as supplied'));
         if (short(key) === 'contentUrl' && typeof value === 'string' && safeLink(value,true) && !/^https?:/i.test(value)) row.append(make('span','locator-label','Crate-relative; keep this page beside the corresponding metadata'));
-        if (key === 'command') { const pre = make('pre','',typeof value === 'string' ? value : JSON.stringify(value,null,2));row.append(pre); }
+        if (key === 'command' || key === 'text' && type === 'Script') { const pre = make('pre','',typeof value === 'string' ? value : JSON.stringify(value,null,2));row.append(pre); }
         else row.append(renderValue(value,key));
         $('properties').append(row);
       }

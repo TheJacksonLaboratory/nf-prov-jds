@@ -191,10 +191,12 @@ file share a single data entity; distinct outputs and their lineage are retained
 
 ### What is preserved
 
-- **Task scripts:** available `.command.sh` and `.command.run` files, copied at
-  completion/cache notification before subsequent work-directory cleanup. Native
-  `exec` tasks do not have shell scripts. Missing cached/stored-task scripts are
-  reported as gaps, not reconstructed from a newly evaluated script.
+- **Task scripts:** the available `.command.sh` contents embedded as UTF-8 text in
+  a named `SoftwareSourceCode` entity at completion/cache notification, before
+  subsequent work-directory cleanup. `.command.run` execution wrappers are not
+  collected. Native `exec` tasks do not have shell scripts. Missing
+  cached/stored-task scripts and invalid UTF-8 are reported as gaps, not
+  reconstructed from a newly evaluated script or silently replaced/truncated.
 - **Task values:** resolved legacy `val`/`each`/explicit `env` inputs and
   `val`/`env` outputs, including flattened tuple components. Scalars retain their
   types; lists, maps and null use JSON text with `encodingFormat:
@@ -223,14 +225,23 @@ file share a single data entity; distinct outputs and their lineage are retained
   also retain the original commit to account for deleted files. Dirty state
   remains flagged because the plugin cannot establish that the selection covers
   all relevant changes. Changes made after launch are outside this snapshot.
-- **Integrity of preserved evidence:** sizes and SHA-256 hashes of copied scripts
+- **Integrity of preserved evidence:** original byte sizes and SHA-256 hashes of embedded scripts
   and selected source files. External reads and reference datasets are not
   additionally copied, enumerated or hashed by evidence capture. Existing native
   input-file packaging behavior is unchanged.
 
-Files are stored under `prov-evidence/tasks/<task-hash>/` and
-`prov-evidence/source/`. Task actions link to an evidence record with `subjectOf`,
-and that record links to preserved files with `hasPart`. Scalar input/output
+Task actions link to an evidence record with `subjectOf`, and that record links
+with `hasPart` to the expanded script entity (`#task-script/<task-hash>`). Its
+human-readable `name` includes the task/process/sample label; its `text` contains
+the expanded shell script, and `about` links back to the task action. Internal
+hashes identify executions, not the names shown to readers. Scripts are embedded
+in the metadata and portable HTML; no task-script files/directories are written.
+The explorer provides an **Expanded commands** section directly on task/evidence
+details and a **Task script** type filter.
+
+Only explicitly selected source snapshots are stored under `prov-evidence/source/`.
+With no `sourceFiles`, this feature does not create a `prov-evidence` directory.
+Scalar input/output
 entities are linked through the task action's `object`/`result`. The workflow run
 links to `#source-evidence`. Settings and capture gaps use named
 `additionalProperty` values. Compound values and gap/status lists use JSON text.
@@ -266,7 +277,7 @@ container identity or Git metadata, absent scripts and unsupported values remain
 visible. Unexpected capture errors are logged and prevent WRROC generation rather
 than producing an apparently complete report.
 
-**Review before sharing:** scripts (especially wrappers), declared task values,
+**Review before sharing:** expanded scripts, declared task values,
 resolved configuration and selected source files can contain credentials,
 patient/sample identifiers or other sensitive information. Evidence capture
 preserves scripts verbatim; it does not promise automatic redaction. It does not
@@ -274,11 +285,16 @@ add log files or environment dumps to the crate. Keep evidence disabled when the
 contents must not be exported, or adjust the workflow's handling of sensitive
 values before enabling it.
 
-The evidence directory follows the report's overwrite policy. With
-`overwrite = true`, linked evidence files are replaced; older, unreferenced files
-may remain in an existing directory. Prefer a separate output directory per run
-for archival/sharing. The HTML embeds metadata, not the contents of linked
-evidence files; keep it with the crate to follow script/source links.
+Source snapshot files follow the report's overwrite policy. With
+`overwrite = true`, linked source files are replaced; older, unreferenced files
+may remain in an existing directory. Reports from older plugin builds used
+`prov-evidence/tasks/` with hidden `.command.sh`/`.command.run` files. New reports
+do not link to or create those task files, but do not automatically delete existing
+archives. Prefer a separate output directory per run for archival/sharing.
+
+The portable HTML embeds the command text along with the metadata, so task scripts
+remain readable without accompanying files. Keep the HTML with the crate only
+when following links to outputs or explicitly selected source snapshots.
 
 ## Offline metadata explorer
 

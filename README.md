@@ -80,10 +80,13 @@ Configuration scope for the desired output formats. The following formats are av
   `./gradlew generateExplorer -Pmetadata=/path/to/ro-crate-metadata.json`.
   See [software annotations and explorer usage](docs/WRROC.md#per-process-software-annotations).
   Opt-in [repeat-analysis evidence](docs/WRROC.md#repeat-analysis-evidence)
-  (`evidence = true`) preserves task scripts, resolved task values, execution
+  (`evidence = true`) embeds named expanded task scripts in the JSON and offline
+  explorer, alongside resolved task values, execution
   settings and source identity, with explicit capture gaps. Large external
   datasets are not bundled by this feature; review scripts/values for sensitive
   information before enabling it.
+  Execution wrappers are not collected; the explorer's **Expanded commands**
+  section shows the script directly from a task's evidence.
   For local launches, `prov.formats.wrroc.codeRepository` provides a validated
   repository URL fallback without changing source revision or local file handling.
   See [repository URL configuration](docs/WRROC.md#repository-url-for-local-launches).
