@@ -87,6 +87,11 @@ Configuration scope for the desired output formats. The following formats are av
   information before enabling it.
   Execution wrappers are not collected; the explorer's **Expanded commands**
   section shows the script directly from a task's evidence.
+  Set `prov.formats.wrroc.copyInputs = false` to retain external input locations
+  and file lineage without automatically bundling input contents, including large
+  reference files or project-owned configuration inputs. Evidence and explicitly
+  selected source snapshots are independent of this option.
+  See [reference-only inputs](docs/WRROC.md#reference-only-inputs).
   For local launches, `prov.formats.wrroc.codeRepository` provides a validated
   repository URL fallback without changing source revision or local file handling.
   See [repository URL configuration](docs/WRROC.md#repository-url-for-local-launches).

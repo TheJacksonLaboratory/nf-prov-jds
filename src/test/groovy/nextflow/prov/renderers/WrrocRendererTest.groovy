@@ -824,7 +824,8 @@ class WrrocRendererTest extends Specification {
         graph["#task/${t.hash}"].object == ['@id': 'scripts/meshing.py']
     }
 
-    def 'should reference project files by repository url' () {
+    @Unroll
+    def 'should reference project files by repository url with copyInputs #copyInputs' () {
         given:
         final owner = script(projectDir.resolve('main.nf'), ['FOO'])
         final input = Files.createDirectories(projectDir.resolve('scripts')).resolve('meshing.py')
@@ -833,12 +834,79 @@ class WrrocRendererTest extends Specification {
         final url = 'https://github.com/nextflow-io/hello/tree/abc123/scripts/meshing.py'
 
         when:
-        final graph = render([t] as Set, repository: 'https://github.com/nextflow-io/hello', commitId: 'abc123')
+        final graph = render([t] as Set, repository: 'https://github.com/nextflow-io/hello', commitId: 'abc123',
+            wrroc: [copyInputs: copyInputs])
 
         then:
         !Files.exists(crateDir.resolve('scripts/meshing.py'))
         graph[url]['@type'] == 'File'
         graph["#task/${t.hash}"].object == ['@id': url]
+
+        where:
+        copyInputs << [true, false]
+    }
+
+    @Unroll
+    def 'should reference inputs without copying contents with evidence #evidenceEnabled' () {
+        given:
+        final owner = script(projectDir.resolve('main.nf'), ['FOO', 'BAR'])
+        final yaml = Files.createDirectories(projectDir.resolve('bin/shared/multiqc')).resolve('rnaseq_multiqc.yaml')
+        yaml.text = 'title: RNA-seq'
+        final reference = Files.createDirectories(workDir.resolve('references')).resolve('large reference.fa')
+        new RandomAccessFile(reference.toFile(), 'rw').withCloseable { it.setLength(16L * 1024 * 1024) }
+        final controls = root.resolve('controls.csv')
+        controls.text = 'id\n1\n'
+        projectDir.resolve('nextflow_schema.json').text = '{"properties":{"reference":{"type":"string","format":"file-path"}}}'
+        final first = task(processor('FOO', owner), 'FOO', inputs: [yaml, reference], outputs: ['processed.txt'])
+        final second = task(processor('BAR', owner), 'BAR', inputs: [first.workDir.resolve('processed.txt')], outputs: ['result.txt'])
+        first.workDir.resolve('.command.sh').text = "cat '${reference}' > processed.txt\n"
+        second.workDir.resolve('.command.sh').text = 'cp processed.txt result.txt\n'
+        final published = crateDir.resolve('result.txt')
+        published.text = 'result'
+        final yamlId = yaml.toUri().toString()
+        final referenceId = reference.toUri().toString()
+        final controlsId = controls.toUri().toString()
+
+        when:
+        final graph = render([first, second] as Set,
+            wrroc: [copyInputs: false, preview: true, evidence: evidenceEnabled,
+                sourceFiles: evidenceEnabled ? ['main.nf'] : []],
+            params: [reference: reference.toString(), same_reference: reference, controls: controls],
+            workflowOutputs: [result: [published]],
+            publishedFiles: [(published): second.workDir.resolve('result.txt')])
+
+        then:
+        !Files.exists(crateDir.resolve('bin'))
+        !Files.exists(crateDir.resolve('reference'))
+        !Files.exists(crateDir.resolve('same_reference'))
+        !Files.exists(crateDir.resolve('controls'))
+        !Files.exists(crateDir.resolve('work'))
+        graph[yamlId].contentUrl == yamlId
+        graph[referenceId].contentUrl == referenceId
+        graph[controlsId].contentUrl == controlsId
+        graph[yamlId].description.contains('contents are not copied')
+        graph[controlsId].description.contains('Input file specified by params.controls')
+        graph["#task/${first.hash}"].object as Set == [['@id': yamlId], ['@id': referenceId]] as Set
+        graph["#task/${second.hash}"].object == ['@id': "#task/${first.hash}/processed.txt".toString()]
+        graph[referenceId].exampleOfWork == [['@id': '#param/reference'], ['@id': '#param/same_reference']]
+        graph[controlsId].exampleOfWork == ['@id': '#param/controls']
+        graph['#param/reference'].additionalType == 'File'
+        !graph['#param/reference/value']
+        !graph['#param/controls/value']
+        graph['#00000000-0000-0000-0000-000000000000'].object.containsAll([
+            ['@id': yamlId], ['@id': referenceId], ['@id': controlsId]])
+        graph['result.txt']['@type'] == 'File'
+        graph['#publish/' + second.hash + '/result.txt'].result == ['@id': 'result.txt']
+        published.text == 'result'
+        crateDir.resolve('main.nf').text == 'workflow {}'
+        Files.exists(crateDir.resolve('nextflow_schema.json'))
+        Files.exists(crateDir.resolve('nextflow.config'))
+        Files.exists(crateDir.resolve('ro-crate-preview.html'))
+        Files.exists(crateDir.resolve('prov-evidence/source/main.nf')) == evidenceEnabled
+        graph["#task-script/${first.hash}"]?.text == (evidenceEnabled ? "cat '${reference}' > processed.txt\n" : null)
+
+        where:
+        evidenceEnabled << [false, true]
     }
 
     def 'should export a configured repository for local runs without inventing revision URLs or changing packaging' () {
@@ -860,6 +928,23 @@ class WrrocRendererTest extends Specification {
         crateDir.resolve('ro-crate-preview.html').text.contains(repository)
     }
 
+    def 'should encode repository input locations without copying inputs' () {
+        given:
+        final input = Files.createDirectories(projectDir.resolve('scripts')).resolve('meshing script.py')
+        input.text = 'print(1)'
+        final t = task(processor('FOO', script(projectDir.resolve('main.nf'), ['FOO'])), 'foo', inputs: [input])
+        final url = 'https://github.com/example/pipeline/tree/abc123/scripts/meshing%20script.py'
+
+        when:
+        final graph = render([t] as Set, repository: 'https://github.com/example/pipeline', commitId: 'abc123',
+            wrroc: [copyInputs: false])
+
+        then:
+        graph[url].contentUrl == url
+        graph["#task/${t.hash}"].object == ['@id': url]
+        !Files.exists(crateDir.resolve('scripts'))
+    }
+
     def 'should prefer Nextflow repository identity over the configured fallback' () {
         when:
         final graph = render([] as Set,
@@ -871,7 +956,8 @@ class WrrocRendererTest extends Specification {
         graph['main.nf'].version == 'abc123'
     }
 
-    def 'should represent remote input files specified by params as file entities' () {
+    @Unroll
+    def 'should represent remote input files specified by params as file entities with copyInputs #copyInputs' () {
         given:
         // a zip filesystem stands in for a remote filesystem
         final zipfs = FileSystems.newFileSystem(root.resolve('remote.zip'), [create: 'true'])
@@ -883,12 +969,13 @@ class WrrocRendererTest extends Specification {
         final t = task(processor('FOO', owner), 'FOO (1)', inputs: [input])
 
         when:
-        final graph = render([t] as Set, params: [input: input, controls: controls, reads: zipfs.getPath('/*.fq')])
+        final graph = render([t] as Set, params: [input: input, controls: controls, reads: zipfs.getPath('/*.fq')],
+            wrroc: [copyInputs: copyInputs])
 
         then:
         graph[input.toUriString()].exampleOfWork == ['@id': '#param/input']
         graph[controls.toUriString()].exampleOfWork == ['@id': '#param/controls']
-        graph[controls.toUriString()].description == 'Input file specified by params.controls'
+        graph[controls.toUriString()].description.startsWith('Input file specified by params.controls')
         !graph.containsKey('#param/input/value')
         !graph.containsKey('#param/controls/value')
         graph['#param/reads/value']['@type'] == 'PropertyValue'
@@ -899,6 +986,9 @@ class WrrocRendererTest extends Specification {
 
         cleanup:
         zipfs?.close()
+
+        where:
+        copyInputs << [true, false]
     }
 
     def 'should represent directories specified by params as dataset entities' () {
@@ -931,7 +1021,8 @@ class WrrocRendererTest extends Specification {
         !graph['./'].hasPart.any { ref -> ref['@id'].startsWith('file:') }
     }
 
-    def 'should link directories specified by params to the input files they contain' () {
+    @Unroll
+    def 'should link directories specified by params to the input files they contain with copyInputs #copyInputs' () {
         given:
         final refs = Files.createDirectories(root.resolve('refs'))
         final genome = refs.resolve('genome.fa')
@@ -944,13 +1035,16 @@ class WrrocRendererTest extends Specification {
         final t = task(processor('FOO', owner), 'FOO (1)', inputs: [genome, index, other])
 
         when:
-        final graph = render([t] as Set, params: [refs: refs])
+        final graph = render([t] as Set, params: [refs: refs], wrroc: [copyInputs: copyInputs])
 
         then:
         final id = refs.toUri().toString()
         graph[id]['@type'] == 'Dataset'
         graph[id].hasPart == [['@id': genome.toUri().toString()], ['@id': index.toUri().toString()]]
         graph[genome.toUri().toString()]['@type'] == 'File'
+
+        where:
+        copyInputs << [true, false]
     }
 
     def 'should set step position to the process depth in the workflow DAG' () {
@@ -980,7 +1074,8 @@ class WrrocRendererTest extends Specification {
         graph['#process-step/BAZ'].position == 2
     }
 
-    def 'should link published input files to their input entities' () {
+    @Unroll
+    def 'should link published input files to their input entities with copyInputs #copyInputs' () {
         given:
         final owner = script(projectDir.resolve('main.nf'), ['FOO'])
         final input = Files.createDirectories(root.resolve('cases')).resolve('samples.csv')
@@ -991,13 +1086,17 @@ class WrrocRendererTest extends Specification {
         final publishedData = Files.createFile(crateDir.resolve('data.txt'))
 
         when:
-        final graph = render([t] as Set, params: [input: input], publishedFiles: [(publishedInput): input, (publishedData): data])
+        final graph = render([t] as Set, params: [input: input], publishedFiles: [(publishedInput): input, (publishedData): data],
+            wrroc: [copyInputs: copyInputs])
 
         then:
-        graph['#publish/input/samples.csv'].object == ['@id': 'input/samples.csv']
+        graph['#publish/input/samples.csv'].object == ['@id': copyInputs ? 'input/samples.csv' : input.toUri().toString()]
         graph['#publish/input/samples.csv'].result == ['@id': 'samples.csv']
         graph['#publish/input/data.txt'].object == ['@id': data.toUri().toString()]
         graph['#publish/input/data.txt'].result == ['@id': 'data.txt']
+
+        where:
+        copyInputs << [true, false]
     }
 
     def 'should link input file to every param that specifies it' () {

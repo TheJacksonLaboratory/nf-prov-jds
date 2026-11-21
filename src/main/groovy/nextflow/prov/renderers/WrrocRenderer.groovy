@@ -72,11 +72,14 @@ class WrrocRenderer implements Renderer {
 
     private final String configuredCodeRepository
 
+    private final boolean copyInputs
+
     // List of contact points (people, organizations) to be added
     private List<Map> contactPoints = []
 
     WrrocRenderer(ProvWrrocConfig config, Path directory=null) {
         configuredCodeRepository = config.codeRepository
+        copyInputs = config.copyInputs
         path = ProvHelper.resolveReportPath(config.file, directory)
         overwrite = config.overwrite
 
@@ -245,12 +248,12 @@ class WrrocRenderer implements Renderer {
                 return
             final source = (value as Path).complete()
             final remote = source.fileSystem != FileSystems.default
-            // copy local files into the crate
+            // track local file parameters, whether packaged or externally referenced
             if( !remote && type == "File" ) {
                 if( !source.isFile() )
                     return
                 paramInputFiles.putIfAbsent(source, name)
-                paramEntityIds[getWorkflowParamId(name)] = getParamFileId(paramInputFiles[source], source)
+                paramEntityIds[getWorkflowParamId(name)] = getParamInputId(paramInputFiles[source], source)
                 return
             }
             // reference remote files and local directories by path (without downloading or copying them)
@@ -275,13 +278,13 @@ class WrrocRenderer implements Renderer {
             }
             .collectEntries { source ->
                 final paramName = paramInputFiles[source]
-                if( paramName )
+                if( copyInputs && paramName )
                     copyParamFile(paramName, source, crateDir)
-                else if( isLocalProjectFile(source) )
+                else if( copyInputs && isLocalProjectFile(source) )
                     copyProjectFile(source, crateDir)
 
                 [source, withoutNulls([
-                    "@id"           : paramName ? getParamFileId(paramName, source) : getDataEntityId(source, getType(source)),
+                    "@id"           : paramName ? getParamInputId(paramName, source) : getDataEntityId(source, getType(source)),
                     "@type"         : getType(source),
                     "name"          : source.name,
                     "encodingFormat": ProvHelper.getEncodingFormat(source),
@@ -289,23 +292,32 @@ class WrrocRenderer implements Renderer {
             } as Map<Path,Map>
         final inputFiles = inputEntities.values().toList()
 
-        // -- copy local input files specified by params that were not used by any task
+        // -- local file parameters that were not used by any task
         paramInputFiles.each { source, name ->
             if( source in workflowInputs )
                 return
             inputFiles.add(withoutNulls([
-                "@id"           : getParamFileId(name, source),
+                "@id"           : getParamInputId(name, source),
                 "@type"         : "File",
                 "description"   : "Input file specified by params.${name}",
                 "encodingFormat": ProvHelper.getEncodingFormat(source)
             ]))
-            copyParamFile(name, source, crateDir)
+            if( copyInputs )
+                copyParamFile(name, source, crateDir)
         }
 
         // -- add remote files and local directories specified by params that were not used by any task
         paramDataEntities.each { id, entity ->
             if( !inputFiles.any { f -> f["@id"] == id } )
                 inputFiles.add(entity)
+        }
+
+        if( !copyInputs ) {
+            for( final input : inputFiles ) {
+                input['contentUrl'] = input['@id']
+                final description = 'External workflow input; contents are not copied by the provenance exporter.'
+                input['description'] = input['description'] ? "${input['description']} ${description}".toString() : description
+            }
         }
 
         linkExampleOfWork(inputFiles, paramEntityIds.collectEntries { paramId, id -> [paramId, [id]] } as Map<String,List<String>>)
@@ -566,7 +578,7 @@ class WrrocRenderer implements Renderer {
                     final output = ProvHelper.findTaskOutput(source, taskLookup)
                     final id =
                         output ? getTaskOutputId(taskLookup[output], output)
-                        : source in paramInputFiles ? getParamFileId(paramInputFiles[source], source)
+                        : source in paramInputFiles ? getParamInputId(paramInputFiles[source], source)
                         : ProvHelper.isTmpInput(source, session) ? "#tmp/${source.name}"
                         : getDataEntityId(source, getType(source))
                     ["@id": id] as Map
@@ -627,7 +639,7 @@ class WrrocRenderer implements Renderer {
             .findAll { target, source -> source != null && source !in taskLookup && target.startsWith(crateDir) }
             .each { target, source ->
                 final inputId = inputEntities[source]?["@id"]
-                    ?: (source in paramInputFiles ? getParamFileId(paramInputFiles[source], source) : null)
+                    ?: (source in paramInputFiles ? getParamInputId(paramInputFiles[source], source) : null)
                 if( !inputId )
                     return
                 final targetId = getCrateFileId(target, crateDir)
@@ -1195,9 +1207,17 @@ class WrrocRenderer implements Renderer {
      * @param type
      */
     private String getDataEntityId(Path path, String type) {
-        if( type == "File" && isLocalProjectFile(path) )
+        if( copyInputs && type == "File" && isLocalProjectFile(path) )
             return projectDir.normalize().relativize(path.normalize()).toString()
-        final id = normalizePath(path)
+        String id
+        if( copyInputs )
+            id = normalizePath(path)
+        else {
+            final uri = path.toAbsolutePath().normalize().toUri()
+            final repositoryId = path.fileSystem == FileSystems.default ? normalizePath(uri.rawPath) : null
+            id = repositoryId?.startsWith('http://') || repositoryId?.startsWith('https://')
+                ? repositoryId : uri.toASCIIString()
+        }
         return type == "Dataset" && !id.endsWith("/") ? "${id}/" : id
     }
 
@@ -1266,6 +1286,10 @@ class WrrocRenderer implements Renderer {
      */
     private static String getParamFileId(String name, Path source) {
         return "${name}/${source.name}"
+    }
+
+    private String getParamInputId(String name, Path source) {
+        return copyInputs ? getParamFileId(name, source) : getDataEntityId(source, "File")
     }
 
     private static void copyParamFile(String name, Path source, Path crateDir) {

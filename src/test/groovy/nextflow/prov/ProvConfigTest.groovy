@@ -48,6 +48,19 @@ class ProvConfigTest extends Specification {
     }
 
     @Unroll
+    def 'should reject non-boolean input-copy policy #value' () {
+        when:
+        new ProvWrrocConfig([copyInputs: value])
+
+        then:
+        final error = thrown(IllegalArgumentException)
+        error.message.contains('prov.formats.wrroc.copyInputs')
+
+        where:
+        value << ['false', 0, null]
+    }
+
+    @Unroll
     def 'should declare config option prov.#name' () {
         given:
         final spec = SpecNode.Scope.of(ProvConfig, '')
@@ -58,6 +71,7 @@ class ProvConfigTest extends Specification {
         where:
         name << [
             'formats.wrroc.preview',
+            'formats.wrroc.copyInputs',
             'formats.wrroc.evidence',
             'formats.wrroc.sourceFiles',
             'formats.wrroc.license',

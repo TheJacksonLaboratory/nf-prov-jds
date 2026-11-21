@@ -21,6 +21,7 @@ The following config options are supported:
 - `prov.formats.wrroc.codeRepository`
 - `prov.formats.wrroc.publisher`
 - `prov.formats.wrroc.preview`
+- `prov.formats.wrroc.copyInputs`
 - `prov.formats.wrroc.evidence`
 - `prov.formats.wrroc.sourceFiles`
 
@@ -88,6 +89,53 @@ Valid license/repository settings resolve their missing-metadata warnings, but
 genuine capture gaps and dirty working trees continue to warn. A release branch
 or tag does not by itself imply a clean working tree. Rebuild/reinstall this fork
 after adding the option; older plugin binaries do not consume it.
+
+## Reference-only inputs
+
+To avoid bundling input data, add `copyInputs = false` to your existing WRROC
+configuration:
+
+```groovy
+prov {
+    formats {
+        wrroc {
+            copyInputs = false
+            evidence = true
+            preview = true
+        }
+    }
+}
+```
+
+Keep your existing report filename, license and repository settings. The default
+is `copyInputs = true`, preserving the original packaging behavior.
+
+With `copyInputs = false`, the renderer does not automatically copy input-file
+contents. This includes local project assets passed as `path` inputs (such as a
+MultiQC YAML file) and local file-valued parameters, including files identified
+by a schema's `file-path` format or not consumed by a task. Keep the `path` inputs
+in your modules: task input links, workflow parameters, directory membership and
+downstream file lineage are retained.
+
+Input entities use external locations rather than paths suggesting a packaged
+copy. They have a `contentUrl` and a description stating that their contents were
+not automatically copied by the exporter. Local locations use absolute `file:` URIs; existing remote/repository
+references are retained where Nextflow supplies them. Original-machine locations
+may not be accessible elsewhere. The option does not invent upstream provenance,
+verify input bytes or hash large references. Record an accessible exact source
+revision or reference identity separately; a repository homepage alone does not
+identify the file version.
+
+This option is independent of `evidence` and `preview`. Expanded commands and
+resolved task evidence remain available with `evidence = true`. It does not affect
+workflow outputs, README/main-script/schema/diagram/resolved-configuration report
+assets, or explicitly requested `sourceFiles` snapshots. Those source snapshots
+are still copied when selected. It also cannot prevent Nextflow/nf-test from
+staging inputs or your workflow from publishing input files as outputs.
+
+Existing files are not deleted when changing this setting, even with
+`overwrite = true`. Use a fresh export directory if you need a package free of
+older copied inputs. Rebuild/reinstall this fork before using the option.
 
 ## Per-process software annotations
 

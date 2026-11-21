@@ -190,6 +190,12 @@ class ProvWrrocConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
+        Copy eligible local input files into the RO-Crate (default: true). Set false to retain external input locations and lineage without copying input contents. Does not affect workflow outputs, report assets or explicitly selected sourceFiles snapshots.
+    ''')
+    final boolean copyInputs
+
+    @ConfigOption
+    @Description('''
         Embed expanded task scripts, resolved task values, execution settings and source identity (default: false). Execution wrappers are not collected. Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
     ''')
     final boolean evidence
@@ -232,6 +238,9 @@ class ProvWrrocConfig implements ConfigScope {
         file = opts.file
         overwrite = opts.overwrite as boolean
         preview = opts.preview as boolean
+        if( opts.containsKey('copyInputs') && !(opts.copyInputs instanceof Boolean) )
+            throw new IllegalArgumentException('prov.formats.wrroc.copyInputs must be a boolean')
+        copyInputs = opts.containsKey('copyInputs') ? (boolean) opts.copyInputs : true
         evidence = opts.evidence as boolean
         sourceFiles = (opts.sourceFiles as List<String> ?: []).unique()
         if( sourceFiles && !evidence )
