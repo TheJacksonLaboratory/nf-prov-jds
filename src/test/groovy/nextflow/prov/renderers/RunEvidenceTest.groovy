@@ -18,6 +18,12 @@ import java.nio.file.Path
 
 import groovy.json.JsonSlurper
 import nextflow.Session
+import nextflow.processor.TaskRun
+import nextflow.processor.TaskConfig
+import nextflow.script.ScriptType
+import nextflow.script.params.FileInParam
+import nextflow.script.params.TupleInParam
+import nextflow.script.params.ValueInParam
 import nextflow.script.WorkflowMetadata
 import spock.lang.Specification
 import spock.lang.TempDir
@@ -100,5 +106,34 @@ class RunEvidenceTest extends Specification {
 
         where:
         name << ['../private.txt', 'link.nf']
+    }
+
+    def 'should not export synthetic tuple bindings that contain paths' () {
+        given:
+        final project = Files.createDirectories(root.resolve('project'))
+        final evidence = new RunEvidence(root.resolve('crate'), [])
+        final value = Mock(ValueInParam) { getName() >> 'sample' }
+        final file = Mock(FileInParam)
+        final tuple = Mock(TupleInParam) {
+            getName() >> '$'
+            getInner() >> [value, file]
+        }
+        final task = Mock(TaskRun) {
+            getHash() >> null
+            getName() >> 'RIGHT (1)'
+            getType() >> ScriptType.GROOVY
+            getInputs() >> [(value): 'A', (tuple): true]
+            hasTypedInputsOutputs() >> true
+            getOutputs() >> [:]
+            isCanBind() >> true
+            getCanBind() >> true
+            getConfig() >> new TaskConfig()
+        }
+
+        when:
+        evidence.captureTask(task)
+
+        then:
+        evidence.entities.findAll { it['@type'] == 'PropertyValue' }.name == ['sample']
     }
 }

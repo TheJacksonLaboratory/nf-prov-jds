@@ -20,6 +20,17 @@ Run with Nextflow as usual:
 nextflow run nf-prov-jds-test -plugins nf-prov-jds@<version>
 ```
 
+Run plugin tests with `./gradlew test`. The explorer's graph/metric logic has
+dependency-free JavaScript tests (Node.js 18+):
+
+```bash
+node --test src/test/javascript/metadata-explorer.test.cjs
+```
+
+For viewer changes, also open a generated preview in a browser and check output
+selection, process/task drill-down, resource filters, local import, portable
+export, and missing-metadata states.
+
 ## Publishing
 
 Follow these steps to package, upload, and publish the plugin:

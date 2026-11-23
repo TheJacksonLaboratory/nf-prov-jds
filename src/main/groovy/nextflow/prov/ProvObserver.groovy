@@ -110,11 +110,18 @@ class ProvObserver implements TraceObserverV2 {
         }
     }
 
-    private void captureEvidence(TaskRun task) {
+    @Override
+    boolean enableMetrics() {
+        return renderers.any { it instanceof WrrocRenderer && it.collectMetrics }
+    }
+
+    private void captureEvidence(TaskEvent event) {
+        final task = event.handler.task
         for( final renderer : renderers ) {
-            if( renderer instanceof WrrocRenderer && renderer.evidence && !evidenceErrors.containsKey(renderer) ) {
+            if( renderer instanceof WrrocRenderer && renderer.collectMetrics && !evidenceErrors.containsKey(renderer) ) {
                 try {
-                    renderer.evidence.captureTask(task)
+                    renderer.evidence?.captureTask(task)
+                    renderer.captureMetrics(task, event.trace)
                 }
                 catch( Exception e ) {
                     evidenceErrors[renderer] = e
@@ -128,10 +135,10 @@ class ProvObserver implements TraceObserverV2 {
     void onTaskComplete(TaskEvent event) {
         final task = event.handler.task
         lock.withLock {
-            captureEvidence(task)
+            captureEvidence(event)
             if( ProvHelper.isSuccess(task) )
                 tasks << task
-            else if( renderers.any { it instanceof WrrocRenderer && it.evidence != null } )
+            else if( renderers.any { it instanceof WrrocRenderer && it.collectMetrics } )
                 failedTasks << task
         }
     }
@@ -139,7 +146,7 @@ class ProvObserver implements TraceObserverV2 {
     @Override
     void onTaskCached(TaskEvent event) {
         lock.withLock {
-            captureEvidence(event.handler.task)
+            captureEvidence(event)
             tasks << event.handler.task
         }
     }
@@ -175,13 +182,13 @@ class ProvObserver implements TraceObserverV2 {
     @Override
     void onFlowComplete() {
         for( final renderer : renderers ) {
-            final includeEvidence = renderer instanceof WrrocRenderer && renderer.evidence != null
-            if( !session.isSuccess() && !includeEvidence )
+            final includeAttempts = renderer instanceof WrrocRenderer && renderer.collectMetrics
+            if( !session.isSuccess() && !includeAttempts )
                 continue
             try {
                 if( renderer instanceof WrrocRenderer && evidenceErrors.containsKey(renderer) )
                     throw new IllegalStateException('Evidence capture failed; WRROC report was not generated', evidenceErrors[renderer])
-                final reportTasks = includeEvidence ? (tasks + failedTasks) as Set<TaskRun> : tasks
+                final reportTasks = includeAttempts ? (tasks + failedTasks) as Set<TaskRun> : tasks
                 renderer.render(session, reportTasks, workflowOutputs, publishedFiles)
             }
             catch( Exception e ) {

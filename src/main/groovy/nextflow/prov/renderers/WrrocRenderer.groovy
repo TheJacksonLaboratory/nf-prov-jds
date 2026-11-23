@@ -36,6 +36,7 @@ import nextflow.prov.Renderer
 import nextflow.prov.util.ProvHelper
 import nextflow.script.ProcessDef
 import nextflow.script.ScriptMeta
+import nextflow.trace.TraceRecord
 import nextflow.util.ConfigHelper
 import nextflow.util.Duration
 import nextflow.util.MemoryUnit
@@ -63,6 +64,10 @@ class WrrocRenderer implements Renderer {
 
     final RunEvidence evidence
 
+    final boolean collectMetrics
+
+    private final Map<String,List<Map>> taskMetrics = [:]
+
     @Delegate
     private PathNormalizer normalizer
 
@@ -80,6 +85,7 @@ class WrrocRenderer implements Renderer {
     WrrocRenderer(ProvWrrocConfig config, Path directory=null) {
         configuredCodeRepository = config.codeRepository
         copyInputs = config.copyInputs
+        collectMetrics = config.preview || config.evidence
         path = ProvHelper.resolveReportPath(config.file, directory)
         overwrite = config.overwrite
 
@@ -100,10 +106,47 @@ class WrrocRenderer implements Renderer {
         }
     }
 
+    synchronized void captureMetrics(TaskRun task, TraceRecord trace) {
+        if( !collectMetrics )
+            return
+        final List<Map> properties = [
+            ['@type': 'PropertyValue', name: 'trace.cached', value: task.cached],
+            ['@type': 'PropertyValue', name: 'trace.source', value: 'Nextflow task trace record']
+        ]
+        final units = [
+            submit: 'ms since Unix epoch', start: 'ms since Unix epoch', complete: 'ms since Unix epoch',
+            duration: 'ms', realtime: 'ms', '%cpu': '%', peak_rss: 'bytes', peak_vmem: 'bytes',
+            rchar: 'bytes', wchar: 'bytes', read_bytes: 'bytes', write_bytes: 'bytes',
+            cpus: 'cores', memory: 'bytes', attempt: 'count'
+        ]
+        for( final field : units.keySet() ) {
+            final raw = trace?.get(field)
+            if( raw == null || raw == '-' )
+                continue
+            final value = raw instanceof Duration ? ((Duration) raw).toMillis()
+                : raw instanceof MemoryUnit ? ((MemoryUnit) raw).toBytes()
+                : raw instanceof Date ? ((Date) raw).time : raw
+            if( !(value.toString() ==~ /[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/) ) {
+                log.warn "WRROC metrics for ${task.name}: invalid numeric trace field ${field}; omitted"
+                continue
+            }
+            properties.add(['@type': 'PropertyValue', name: "trace.${field}".toString(),
+                value: new BigDecimal(value.toString()), unitText: units[field]])
+        }
+        final status = trace?.get('status')
+        if( status )
+            properties.add(['@type': 'PropertyValue', name: 'trace.status', value: status.toString()])
+        final names = properties.collect { it['name'] }
+        final measured = ['realtime', '%cpu', 'peak_rss'].count { names.contains("trace.${it}".toString()) }
+        properties.add(['@type': 'PropertyValue', name: 'trace.metricsStatus',
+            value: measured == 3 ? 'captured' : measured ? 'partial' : 'unavailable'])
+        taskMetrics[RunEvidence.taskKey(task)] = properties
+    }
+
     @Override
     void render(Session session, Set<TaskRun> tasks, Map<String,List<Path>> workflowOutputs, Map<Path,Path> publishedFiles) {
         // get workflow inputs
-        final taskLookup = ProvHelper.getTaskLookup(evidence ? tasks.findAll { it.canBind } as Set<TaskRun> : tasks)
+        final taskLookup = ProvHelper.getTaskLookup(collectMetrics ? tasks.findAll { it.canBind } as Set<TaskRun> : tasks)
         final workflowInputs = ProvHelper.getWorkflowInputs(tasks, taskLookup)
 
         // get workflow metadata
@@ -530,6 +573,7 @@ class WrrocRenderer implements Renderer {
         }
 
         final processSteps = ProvHelper.getProcessSteps(session.dag)
+        final processSuccessors = ProvHelper.getProcessSuccessors(session.dag)
         final howToSteps = taskProcessors
             .collect() { process ->
                 final processDef = processLookup[process]
@@ -537,7 +581,10 @@ class WrrocRenderer implements Renderer {
                 withoutNulls([
                     "@id"        : getProcessStepId(process),
                     "@type"      : "HowToStep",
+                    "name"       : process.name,
                     "workExample": moduleId ? ["@id": moduleId] : null,
+                    "nextItem"   : processSuccessors[process]?.findAll { it in taskProcessors }
+                        ?.collect { next -> ['@id': getProcessStepId(next)] },
                     "position"   : processSteps[process]
                 ])
             }
@@ -573,7 +620,7 @@ class WrrocRenderer implements Renderer {
             .collect { task ->
                 final processDef = processLookup[task.processor]
                 final moduleId = annotatedModuleIds[task.processor] ?: (processDef ? getModuleId(processDef) : null)
-                final success = ProvHelper.isSuccess(task) && (!evidence || (!task.failed && !task.aborted))
+                final success = ProvHelper.isSuccess(task) && (!collectMetrics || (!task.failed && !task.aborted))
                 final List<Map> inputs = ProvHelper.getTaskInputs(task).collect { name, source ->
                     final output = ProvHelper.findTaskOutput(source, taskLookup)
                     final id =
@@ -583,7 +630,7 @@ class WrrocRenderer implements Renderer {
                         : getDataEntityId(source, getType(source))
                     ["@id": id] as Map
                 }
-                final List<Map> outputs = (evidence && !task.canBind ? [] : ProvHelper.getTaskOutputs(task)).collect { Path target ->
+                final List<Map> outputs = (collectMetrics && !task.canBind ? [] : ProvHelper.getTaskOutputs(task)).collect { Path target ->
                     ["@id": getTaskOutputId(task, target)] as Map
                 }
                 final result = withoutNulls([
@@ -594,15 +641,16 @@ class WrrocRenderer implements Renderer {
                     "agent"       : agent ? ["@id": agent["@id"]] : null,
                     "object"      : inputs + (evidence ? (List<Map>) evidence.tasks[RunEvidence.taskKey(task)].inputs : []),
                     "result"      : outputs + (evidence ? (List<Map>) evidence.tasks[RunEvidence.taskKey(task)].outputs : []),
+                    "additionalProperty": taskMetrics[RunEvidence.taskKey(task)],
                     "subjectOf"   : evidence ? ['@id': ((Map) evidence.tasks[RunEvidence.taskKey(task)].record)['@id']] : null,
                     "actionStatus": success ? "http://schema.org/CompletedActionStatus" : "http://schema.org/FailedActionStatus"
                 ])
                 if( !success )
-                    result["error"] = evidence ? "Task failed (exit status ${task.exitStatus}); logs are not collected.".toString() : task.stderr
+                    result["error"] = collectMetrics ? "Task failed (exit status ${task.exitStatus}); logs are not collected.".toString() : task.stderr
                 return result
             }
 
-        final taskOutputs = tasks.findAll { !evidence || it.canBind }.collectMany { task ->
+        final taskOutputs = tasks.findAll { !collectMetrics || it.canBind }.collectMany { task ->
             ProvHelper.getTaskOutputs(task).collect { target ->
                 final name = getTaskOutputName(task, target)
 
@@ -795,7 +843,7 @@ class WrrocRenderer implements Renderer {
                         *asReferences(outputValues),
                         *asReferences(outputFiles),
                     ],
-                    "actionStatus": evidence ? (session.isSuccess() ? "http://schema.org/CompletedActionStatus" : "http://schema.org/FailedActionStatus") : null,
+                    "actionStatus": collectMetrics ? (session.isSuccess() ? "http://schema.org/CompletedActionStatus" : "http://schema.org/FailedActionStatus") : null,
                     "subjectOf": evidence ? ["@id": "#source-evidence"] : null,
                 ]),
                 license,

@@ -296,9 +296,18 @@ links to `#source-evidence`. Settings and capture gaps use named
 Scalar values do **not** create guessed dependency edges between tasks that happen
 to produce/consume equal values.
 
-With evidence enabled, WRROC is also generated for failed workflows and includes
-observed failed attempts with failed action status. Other report formats and
-the default, evidence-disabled lifecycle are unchanged. Only observed tasks are
+Path inputs are intentionally not duplicated as scalar evidence. In typed
+processes, Nextflow can expose a tuple containing a path through an internal
+synthetic `$` binding; that binding is a staging marker, not a user value, and
+is omitted from the evidence value entities. The path itself remains represented
+by the task's normal file input relationship. Scalar tuple members such as
+`sample` remain recorded once per task observation. The explorer labels values
+with input/output direction and task name so repeated observations are not
+mistaken for a shared value.
+
+With evidence or preview enabled, WRROC is also generated for failed workflows and
+includes observed failed attempts with failed action status. Other report formats
+and the default lifecycle (both options disabled) are unchanged. Only observed tasks are
 represented: a failure before a task is created cannot supply task evidence.
 
 ### Internal reference selection
@@ -367,6 +376,74 @@ prov {
 The preview embeds the complete graph, not a pruned graph rooted at one output.
 It provides search, type filters, incoming/outgoing references, workflow-run
 input/output filters, all property values and original entity JSON.
+
+### Workflow DAG and output lineage
+
+- **Workflow DAG** groups task executions by their qualified process, with
+  sample/attempt drill-down and links to task details and expanded commands.
+  Solid arrows represent recorded data dependencies. Dashed arrows represent
+  Nextflow channel dependencies, including scalar-only channels; intervening
+  operators are collapsed. All observed processes remain visible, including
+  disconnected branches. Use the output selector to highlight explicit output
+  ancestry, or zoom/fit width and scroll to explore.
+- **Output lineage** lets you select any declared workflow output and follow
+  its explicit ancestry, left to right: external inputs, task executions,
+  intermediate results and publication. Software/tools appear as supporting
+  context with dashed links. Click a node to inspect its metadata and scripts.
+  Boundaries without a producer are listed as declared inputs or unknown origins.
+
+Workflow-level aggregate input/output relationships are **not** interpreted as
+all-to-all task dependencies. Lineage shows every declared input to each producing
+task, not byte-level proof that an input contributed to a specific result.
+Channel-only dependencies and equal scalar values do not create file ancestry.
+Unrecorded internal file accesses or directory membership cannot be reconstructed.
+Only observed processes/tasks are exported, not inactive conditional branches or
+tasks that were never created. Cycles introduced by grouping executions are
+identified and retained, rather than silently dropping edges.
+
+### Native resource charts
+
+With **either `preview = true` or `evidence = true`**, the plugin requests Nextflow
+task metrics and snapshots raw `TaskEvent.trace` records. Neither `-with-report`
+nor `-with-trace` is required. Collection uses Nextflow's task monitor, with the
+same executor/platform limitations and monitoring overhead as its native report.
+For example, CPU/memory monitoring is unavailable for local macOS tasks without
+a container engine; timing can still be available.
+
+Task `CreateAction.additionalProperty` entries named `trace.*` retain numeric
+values with explicit `unitText`: timestamps in milliseconds since Unix epoch,
+`duration` and `realtime` in milliseconds, memory/I/O in bytes, CPU in percent,
+and requested CPUs in cores. Also recorded are cached state, trace status,
+attempt and `trace.metricsStatus`: `captured` means runtime, CPU and peak RSS are
+all present, `partial` means some are present, and `unavailable` means none of
+these three are present. Other metrics can still be absent.
+`duration` includes scheduling/termination overhead; the charts use `realtime`
+for task runtime. Missing fields are omitted, never replaced with zero.
+This allowlist does not export the trace environment, logs or command wrapper.
+
+The **Resources** tab provides process comparisons and searchable task-level
+measurements, including runtime, CPU allocation usage, peak resident memory,
+requested resources, and disk read/write bytes. Important distinctions:
+
+- CPU `100%` is one core; allocated CPU used is `%cpu / requested cpus`.
+  The process chart uses the unweighted mean of available task percentages,
+  and reports how many tasks supplied each metric.
+- CPU/memory allocations are shown separately from measured usage. An absent
+  measurement is **Unavailable**, not a zero or an allocation-based estimate.
+- Runtime totals sum task runtimes, not workflow wall time. Peak RSS is the
+  largest single-task peak, not the sum of peaks or simultaneous workflow memory.
+- Cached measurements describe their **original execution**. They are excluded
+  from charts/totals by default and can be included explicitly. A cache or
+  `storeDir` skip without a trace record remains unavailable.
+- Observed failed attempts are included with their status, even with preview
+  alone; failed workflows also produce WRROC/preview when possible. This does
+  not enable script/value/source capture unless `evidence` is enabled.
+
+Usage metrics and process channel links remain in the JSON independently of HTML
+rendering. Older crates can use the new views where relationships are present,
+but regenerating their HTML cannot create missing measurements or dependencies.
+Run again with these options to collect them; resumed runs can supply historical
+cached metrics only when Nextflow retained the original trace.
 
 Open the page directly in a browser; no server or network connection is required.
 It does not upload metadata or fetch external references. File links are followed

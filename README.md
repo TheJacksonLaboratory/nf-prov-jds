@@ -11,7 +11,8 @@ fork by The Jackson Laboratory. Supports standard formats such as
 developed by the Nextflow team and upstream contributors. The upstream project
 provides the foundation for this plugin's provenance formats and capture
 infrastructure. This fork adds per-tool software annotations, an offline metadata
-explorer, expanded task-script and execution evidence, and reference-only input
+explorer with native resource charts, a process-grouped workflow DAG and output
+lineage, expanded task-script and execution evidence, and reference-only input
 packaging. It is a separate plugin, not an official release of `nf-prov`.
 
 Source and issues: [TheJacksonLaboratory/nf-prov-jds](https://github.com/TheJacksonLaboratory/nf-prov-jds).
@@ -70,6 +71,14 @@ nextflow run nf-prov-jds-test/ -plugins nf-prov-jds@$(cat VERSION)
 
 See [WRROC configuration and examples](docs/WRROC.md) for software annotations,
 the HTML explorer, execution evidence and reference-only inputs.
+
+Set `prov.formats.wrroc.preview = true` for the offline viewer. Preview or evidence
+also requests Nextflow task usage metrics and retains observed failed attempts.
+CPU/memory availability depends on the executor/platform; unavailable metrics
+remain explicitly unknown, and cached measurements are identified as historical.
+Path-containing tuple staging markers (including Nextflow's internal `$` binding)
+are not exported as scalar values; their file lineage remains in normal task
+input relationships.
 
 ## Configuration
 

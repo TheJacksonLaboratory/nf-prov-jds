@@ -36,6 +36,7 @@ import nextflow.prov.ProvFormatsConfig
 import nextflow.prov.ProvObserver
 import nextflow.processor.TaskHandler
 import nextflow.trace.event.TaskEvent
+import nextflow.trace.TraceRecord
 import nextflow.script.BaseScript
 import nextflow.script.ProcessDef
 import nextflow.script.ScriptBinding
@@ -233,6 +234,105 @@ class WrrocRendererTest extends Specification {
     }
 
     // -- tests
+
+    @Unroll
+    def 'should export raw trace metrics for cached #cached with trace available #available' () {
+        given:
+        final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align', cached: cached)
+        final report = crateDir.resolve('ro-crate-metadata.json')
+        final observer = new ProvObserver(new ProvFormatsConfig([wrroc: [file: report.toString(), preview: true]]), [])
+        final handler = Mock(TaskHandler) { getTask() >> t }
+        final trace = new TraceRecord()
+        trace.putAll([realtime: 1250L, duration: 3000L, '%cpu': 150.5, peak_rss: 1048576L,
+            cpus: 2, memory: new MemoryUnit('1 GB'), read_bytes: 0L, write_bytes: '-', peak_vmem: -1,
+            start: new Date(1700000000000L), status: cached ? 'CACHED' : 'COMPLETED'])
+        observer.onFlowCreate(session())
+
+        when:
+        if( cached )
+            observer.onTaskCached(new TaskEvent(handler, available ? trace : null))
+        else
+            observer.onTaskComplete(new TaskEvent(handler, available ? trace : null))
+        observer.onFlowComplete()
+        final crate = new JsonSlurper().parse(report.toFile())
+        final action = crate['@graph'].find { it['@id'] == "#task/${t.hash}".toString() }
+        final properties = action.additionalProperty.collectEntries { [(it.name): it] }
+
+        then:
+        observer.enableMetrics()
+        properties['trace.cached'].value == cached
+        properties['trace.metricsStatus'].value == (available ? 'captured' : 'unavailable')
+        !properties.containsKey('trace.write_bytes')
+        !properties.containsKey('trace.peak_vmem')
+        !properties.containsKey('trace.env')
+        if( available ) {
+            assert properties['trace.realtime'].value == 1250
+            assert properties['trace.realtime'].unitText == 'ms'
+            assert properties['trace.duration'].value == 3000
+            assert properties['trace.%cpu'].value == 150.5
+            assert properties['trace.peak_rss'].value == 1048576
+            assert properties['trace.peak_rss'].unitText == 'bytes'
+            assert properties['trace.memory'].value == 1073741824
+            assert properties['trace.read_bytes'].value == 0
+            assert properties['trace.start'].value == 1700000000000L
+        }
+        else
+            assert !properties.containsKey('trace.realtime')
+        Files.exists(crateDir.resolve('ro-crate-preview.html'))
+
+        where:
+        cached | available
+        false  | true
+        true   | true
+        true   | false
+        false  | false
+    }
+
+    @Unroll
+    def 'should request trace collection only for preview or evidence with preview #preview and evidence #evidence' () {
+        given:
+        final observer = new ProvObserver(new ProvFormatsConfig([wrroc: [
+            file: crateDir.resolve('ro-crate-metadata.json').toString(), preview: preview, evidence: evidence]]), [])
+
+        expect:
+        observer.enableMetrics() == (preview || evidence)
+
+        where:
+        preview | evidence
+        false   | false
+        true    | false
+        false   | true
+    }
+
+    def 'should export channel-only process dependencies through operators without skipping an intervening process' () {
+        given:
+        final owner = script(projectDir.resolve('main.nf'), ['FIRST', 'SECOND', 'THIRD'])
+        final first = processor('WF:FIRST', owner)
+        final second = processor('WF:SECOND', owner)
+        final third = processor('WF:THIRD', owner)
+        final a = Stub(DAG.Vertex) { getProcess() >> first }
+        final op = Stub(DAG.Vertex) { getProcess() >> null }
+        final b = Stub(DAG.Vertex) { getProcess() >> second }
+        final c = Stub(DAG.Vertex) { getProcess() >> third }
+        final dag = Stub(DAG) {
+            getVertices() >> [a, op, b, c]
+            getEdges() >> [
+                Stub(DAG.Edge) { getFrom() >> a; getTo() >> op },
+                Stub(DAG.Edge) { getFrom() >> op; getTo() >> b },
+                Stub(DAG.Edge) { getFrom() >> op; getTo() >> op },
+                Stub(DAG.Edge) { getFrom() >> b; getTo() >> c }
+            ]
+        }
+
+        when:
+        final graph = render([task(first, 'first'), task(second, 'second'), task(third, 'third')] as Set, dag: dag)
+
+        then:
+        graph['#process-step/WF:FIRST'].name == 'WF:FIRST'
+        graph['#process-step/WF:FIRST'].nextItem == ['@id': '#process-step/WF:SECOND']
+        graph['#process-step/WF:SECOND'].nextItem == ['@id': '#process-step/WF:THIRD']
+        !graph['#process-step/WF:THIRD'].nextItem
+    }
 
     def 'should render a crate' () {
         given:
@@ -725,32 +825,38 @@ class WrrocRendererTest extends Specification {
         graph['#00000000-0000-0000-0000-000000000000'].actionStatus.endsWith('FailedActionStatus')
     }
 
-    def 'should render failed workflows only when evidence is enabled and capture before cleanup' () {
+    def 'should render failed workflows for preview or evidence and capture before cleanup' () {
         given:
         final t = task(processor('ALIGN', script(projectDir.resolve('align.nf'), ['ALIGN'])), 'align', exitStatus: 42)
         t.workDir.resolve('.command.sh').text = 'exit 42'
         t.workDir.resolve('.command.run').text = '# wrapper'
         final report = crateDir.resolve('ro-crate-metadata.json')
-        final observer = new ProvObserver(new ProvFormatsConfig([wrroc: [file: report.toString(), evidence: enabled]]), [])
+        final observer = new ProvObserver(new ProvFormatsConfig([wrroc: [file: report.toString(), evidence: enabled, preview: preview]]), [])
         final handler = Mock(TaskHandler) { getTask() >> t }
         observer.onFlowCreate(session(success: false))
         observer.onFlowBegin()
 
         when:
-        observer.onTaskComplete(new TaskEvent(handler))
+        final trace = new TraceRecord()
+        trace.putAll([realtime: 300L, '%cpu': 0, peak_rss: 0, status: 'FAILED'])
+        observer.onTaskComplete(new TaskEvent(handler, trace))
         Files.delete(t.workDir.resolve('.command.sh'))
         observer.onFlowComplete()
 
         then:
-        Files.exists(report) == enabled
-        if( enabled ) {
+        Files.exists(report) == (enabled || preview)
+        if( enabled || preview ) {
             final crate = new JsonSlurper().parse(report.toFile())
-            assert crate['@graph'].find { it['@id'] == "#task-script/${t.hash}".toString() }.text == 'exit 42'
+            assert crate['@graph'].find { it['@id'] == "#task-script/${t.hash}".toString() }?.text == (enabled ? 'exit 42' : null)
             assert crate['@graph'].find { it['@id'] == "#task/${t.hash}".toString() }.actionStatus.endsWith('FailedActionStatus')
+            assert crate['@graph'].find { it['@id'] == "#task/${t.hash}".toString() }.additionalProperty.find { it.name == 'trace.status' }.value == 'FAILED'
         }
 
         where:
-        enabled << [false, true]
+        enabled | preview
+        false   | false
+        true    | false
+        false   | true
     }
 
     def 'should record native task as completed' () {

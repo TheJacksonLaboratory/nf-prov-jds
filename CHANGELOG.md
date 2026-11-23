@@ -12,6 +12,8 @@ entries refer to the [upstream repository](https://github.com/nextflow-io/nf-pro
 
 - Publish under the separate `nf-prov-jds` plugin identity and The Jackson Laboratory repository.
 - Add per-tool software annotations and an offline metadata explorer.
+- Add native resource charts, a process-grouped workflow DAG and interactive output ancestry; retain raw trace metrics and channel dependencies in WRROC.
+- Request task monitoring with preview or evidence enabled and include observed failed attempts/workflows, without requiring full evidence capture for the preview.
 - Add opt-in expanded task scripts, resolved task values, execution settings and source evidence.
 - Add a repository URL fallback and reference-only input packaging.
 - Deduplicate overlapping task output declarations.

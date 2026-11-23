@@ -270,6 +270,35 @@ class ProvHelper {
         return result
     }
 
+    static Map<TaskProcessor,Set<TaskProcessor>> getProcessSuccessors(DAG dag) {
+        final Map<DAG.Vertex,List<DAG.Vertex>> successors = [:]
+        for( final edge : dag.edges ) {
+            if( edge.from != null && edge.to != null )
+                successors.computeIfAbsent(edge.from, (k) -> new ArrayList<DAG.Vertex>()).add(edge.to)
+        }
+        final Map<TaskProcessor,Set<TaskProcessor>> result = [:]
+        for( final vertex : dag.vertices ) {
+            if( vertex.process == null )
+                continue
+            final reached = new LinkedHashSet<TaskProcessor>()
+            final visited = new HashSet<DAG.Vertex>()
+            final pending = new ArrayDeque<DAG.Vertex>(successors.getOrDefault(vertex, []))
+            while( !pending.isEmpty() ) {
+                final next = pending.removeFirst()
+                if( !visited.add(next) )
+                    continue
+                if( next.process != null ) {
+                    if( next.process != vertex.process )
+                        reached.add(next.process)
+                }
+                else
+                    pending.addAll(successors.getOrDefault(next, []))
+            }
+            result[vertex.process] = reached
+        }
+        return result
+    }
+
     private static int getDepth(DAG.Vertex vertex, Map<DAG.Vertex,List<DAG.Vertex>> preds, Map<DAG.Vertex,Integer> depths) {
         if( depths.containsKey(vertex) )
             return depths[vertex]

@@ -32,6 +32,8 @@ import nextflow.script.ScriptType
 import nextflow.script.params.EnvInParam
 import nextflow.script.params.EnvOutParam
 import nextflow.script.params.EachInParam
+import nextflow.script.params.FileInParam
+import nextflow.script.params.TupleInParam
 import nextflow.script.params.ValueInParam
 import nextflow.script.params.ValueOutParam
 
@@ -165,9 +167,12 @@ class RunEvidence {
         final result = [] as List<Map>
         int index = 0
         parameters.each { param, value ->
-            final supported = typed || (input
+            final fileTuple = param instanceof TupleInParam && ((TupleInParam) param).inner.any { it instanceof FileInParam }
+            final syntheticTuple = param instanceof nextflow.script.params.InParam
+                && ((nextflow.script.params.InParam) param).name == '$'
+            final supported = !(param instanceof FileInParam) && !fileTuple && !syntheticTuple && (typed || (input
                 ? param instanceof ValueInParam || param instanceof EachInParam || param instanceof EnvInParam
-                : param instanceof ValueOutParam || param instanceof EnvOutParam)
+                : param instanceof ValueOutParam || param instanceof EnvOutParam))
             if( !supported )
                 return
             final name = input

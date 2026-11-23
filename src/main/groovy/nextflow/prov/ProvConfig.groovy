@@ -184,7 +184,7 @@ class ProvWrrocConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        Write a self-contained, offline ro-crate-preview.html beside the Workflow Run RO-Crate (default: false). Uses the same overwrite policy as the metadata file.
+        Write a self-contained, offline ro-crate-preview.html with resource charts, a grouped workflow DAG and output lineage beside the Workflow Run RO-Crate (default: false). Requests Nextflow trace metrics and includes observed failed attempts/workflows. Uses the same overwrite policy as the metadata file.
     ''')
     final boolean preview
 
@@ -196,7 +196,7 @@ class ProvWrrocConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        Embed expanded task scripts, resolved task values, execution settings and source identity (default: false). Execution wrappers are not collected. Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
+        Embed expanded task scripts, resolved task values, execution settings, trace metrics and source identity (default: false). Execution wrappers are not collected. Scripts, values and selected source files may contain sensitive information. Does not copy external reads or reference data.
     ''')
     final boolean evidence
 
