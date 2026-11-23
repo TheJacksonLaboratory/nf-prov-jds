@@ -20,10 +20,10 @@ Source and issues: [TheJacksonLaboratory/nf-prov-jds](https://github.com/TheJack
 
 | Version |	Minimum Nextflow version |
 | ------- | ------------------------ |
-| 1.8.x   | 26.10 |
+| 0.1.x   | 26.10 |
 
-Earlier versions in the [changelog](CHANGELOG.md) refer to upstream `nf-prov`,
-not releases of this fork.
+The inherited release history in the [changelog](CHANGELOG.md) refers to upstream
+`nf-prov`, not releases of this fork. `nf-prov-jds 0.1.0` is based on `nf-prov 1.8.0`.
 
 ## Get Started
 
@@ -34,7 +34,7 @@ To enable and configure `nf-prov-jds`, include the following snippet in your Nex
 
 ```groovy
 plugins {
-  id 'nf-prov-jds@1.8.0'
+  id 'nf-prov-jds@0.1.0'
 }
 
 prov {
@@ -81,7 +81,7 @@ The following options are available:
 
 `prov.directory`
 
-*New in version 1.8.0*
+*Inherited from nf-prov 1.8.0*
 
 The directory where the provenance reports should be saved. The path is resolved against the workflow output directory (`outputDir`). It must be a relative path within the output directory, and it cannot be used when a report file is an absolute path. By default, it is not used and report files are resolved against the launch directory.
 

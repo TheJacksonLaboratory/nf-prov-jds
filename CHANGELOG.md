@@ -4,7 +4,7 @@ All notable changes to the nf-prov-jds plugin will be documented here.
 
 See [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased] - nf-prov-jds
+## [0.1.0] - nf-prov-jds
 
 This fork is based on [nf-prov 1.8.0](https://github.com/nextflow-io/nf-prov/releases/tag/1.8.0).
 The dated entries below are preserved upstream history; issue numbers in those
