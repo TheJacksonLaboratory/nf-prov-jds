@@ -1,28 +1,40 @@
-# nf-prov
+# nf-prov-jds
 
-Nextflow plugin to render provenance reports for pipeline runs. Supports standard formats such as [BioCompute Object](https://biocomputeobject.org/) and [Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/).
+## Summary
+
+Nextflow plugin to render provenance reports for pipeline runs, maintained as a
+fork by The Jackson Laboratory. Supports standard formats such as
+[BioCompute Object](https://biocomputeobject.org/) and
+[Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/).
+
+`nf-prov-jds` is derived from [nf-prov](https://github.com/nextflow-io/nf-prov),
+developed by the Nextflow team and upstream contributors. The upstream project
+provides the foundation for this plugin's provenance formats and capture
+infrastructure. This fork adds per-tool software annotations, an offline metadata
+explorer, expanded task-script and execution evidence, and reference-only input
+packaging. It is a separate plugin, not an official release of `nf-prov`.
+
+Source and issues: [TheJacksonLaboratory/nf-prov-jds](https://github.com/TheJacksonLaboratory/nf-prov-jds).
 
 ## Requirements
 
 | Version |	Minimum Nextflow version |
 | ------- | ------------------------ |
 | 1.8.x   | 26.10 |
-| 1.7.x   | 25.10 |
-| 1.6.x   | 25.10 |
-| 1.5.x   | 25.04 |
-| 1.4.x   | 24.10 |
-| 1.3.x   | 24.10 |
-| 1.2.x   | 23.04 |
-| 1.1.x   | 23.04 |
-| 1.0.x   | 22.04 |
 
-## Getting Started
+Earlier versions in the [changelog](CHANGELOG.md) refer to upstream `nf-prov`,
+not releases of this fork.
 
-To enable and configure `nf-prov`, include the following snippet to your Nextflow config and update as needed.
+## Get Started
+
+Build and install from this checkout with `make install` (JDK 21 required).
+Registry installation requires a published `nf-prov-jds` release.
+
+To enable and configure `nf-prov-jds`, include the following snippet in your Nextflow config and update as needed.
 
 ```groovy
 plugins {
-  id 'nf-prov'
+  id 'nf-prov-jds@1.8.0'
 }
 
 prov {
@@ -40,9 +52,24 @@ prov {
 }
 ```
 
-Any number of formats can be specified. You do not need to modify your pipeline script in order to use the `nf-prov` plugin.
+Any number of formats can be specified. You do not need to modify your pipeline script in order to use the `nf-prov-jds` plugin.
 
 When you run your Nextflow pipeline, the plugin will automatically produce the specified provenance reports at the end of the run.
+
+The configuration scope remains `prov`, and software annotations remain
+`ext.prov`. Replace the `nf-prov` plugin declaration rather than loading both
+plugins in the same run.
+
+## Examples
+
+After building and installing the plugin, run the bundled example:
+
+```bash
+nextflow run nf-prov-jds-test/ -plugins nf-prov-jds@$(cat VERSION)
+```
+
+See [WRROC configuration and examples](docs/WRROC.md) for software annotations,
+the HTML explorer, execution evidence and reference-only inputs.
 
 ## Configuration
 
@@ -96,7 +123,7 @@ Configuration scope for the desired output formats. The following formats are av
   repository URL fallback without changing source revision or local file handling.
   See [repository URL configuration](docs/WRROC.md#repository-url-for-local-launches).
 
-See the [nf-prov-test](./nf-prov-test) directory for an example pipeline that produces every provenance format.
+See the [nf-prov-jds-test](./nf-prov-jds-test) directory for an example pipeline that produces every provenance format.
 
 *New in version 1.7.0*
 
@@ -109,3 +136,6 @@ List of file patterns to include in the provenance report, from the set of publi
 ## License
 
 This project is licensed under the [Apache License 2.0](./COPYING).
+Upstream copyright and author notices are retained. The inherited release history
+is preserved in [CHANGELOG.md](./CHANGELOG.md); fork changes are identified
+separately.

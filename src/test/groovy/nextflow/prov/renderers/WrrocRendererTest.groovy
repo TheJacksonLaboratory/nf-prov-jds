@@ -172,7 +172,7 @@ class WrrocRendererTest extends Specification {
             getRepository() >> opts.repository
             getCommitId() >> opts.commitId
             getCommandLine() >> opts.commandLine
-            getManifest() >> new Manifest([name: 'nf-prov-test', description: 'Test pipeline', version: '1.0.0'] + (opts.manifest ?: [:]))
+            getManifest() >> new Manifest([name: 'nf-prov-jds-test', description: 'Test pipeline', version: '1.0.0'] + (opts.manifest ?: [:]))
             getStart() >> OffsetDateTime.now()
             getComplete() >> OffsetDateTime.now()
             getNextflow() >> NextflowMeta.instance

@@ -398,11 +398,11 @@ class GexfRenderer implements Renderer {
             w.writeStartElement("meta")
             w.writeAttribute("lastmodifieddate", new SimpleDateFormat("yyyy-MM-dd").format(new Date()))
             w.writeStartElement("creator")
-            w.writeCharacters("GEXF Renderer for nf-prov.")
+            w.writeCharacters("GEXF Renderer for nf-prov-jds (derived from nf-prov).")
             w.writeEndElement()
 
             w.writeStartElement("description")
-            w.writeCharacters("GEXF Renderer for nf-prov. Visualize with https://gephi.org/.")
+            w.writeCharacters("GEXF Renderer for nf-prov-jds (derived from nf-prov). Visualize with https://gephi.org/.")
             w.writeEndElement()
 
             w.writeEndElement() // meta

@@ -1,8 +1,20 @@
 # Changelog
 
-All notable changes to the nf-prov plugin will be documented here.
+All notable changes to the nf-prov-jds plugin will be documented here.
 
 See [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+
+## [Unreleased] - nf-prov-jds
+
+This fork is based on [nf-prov 1.8.0](https://github.com/nextflow-io/nf-prov/releases/tag/1.8.0).
+The dated entries below are preserved upstream history; issue numbers in those
+entries refer to the [upstream repository](https://github.com/nextflow-io/nf-prov).
+
+- Publish under the separate `nf-prov-jds` plugin identity and The Jackson Laboratory repository.
+- Add per-tool software annotations and an offline metadata explorer.
+- Add opt-in expanded task scripts, resolved task values, execution settings and source evidence.
+- Add a repository URL fallback and reference-only input packaging.
+- Deduplicate overlapping task output declarations.
 
 ## [1.8.0] - 2026-10-12
 

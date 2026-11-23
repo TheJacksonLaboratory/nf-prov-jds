@@ -3,4 +3,4 @@
 //     includeBuild '../nextflow-plugin-gradle'
 // }
 
-rootProject.name = 'nf-prov'
+rootProject.name = 'nf-prov-jds'

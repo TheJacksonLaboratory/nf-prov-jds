@@ -26,7 +26,7 @@ import nextflow.prov.util.ProvHelper
 
 @ScopeName('prov')
 @Description('''
-    The `prov` scope allows you to configure the `nf-prov` plugin.
+    The `prov` scope allows you to configure the `nf-prov-jds` plugin.
 ''')
 @CompileStatic
 class ProvConfig implements ConfigScope {

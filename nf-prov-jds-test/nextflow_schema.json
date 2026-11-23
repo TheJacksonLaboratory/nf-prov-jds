@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "nf-prov-test pipeline parameters",
+  "title": "nf-prov-jds-test pipeline parameters",
   "type": "object",
   "$defs": {
     "input_output_options": {
