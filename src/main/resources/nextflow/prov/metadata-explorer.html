@@ -57,7 +57,7 @@
     .table-scroll{overflow:auto;max-height:600px}table{border-collapse:collapse;width:100%;font-size:12px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;background:#f3f6fb;position:sticky;top:0}th,td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top}td button{font-size:11px;color:#245ad1;background:transparent;border:0;text-align:left;padding:0;overflow-wrap:anywhere}
     .guide h3{margin:17px 0 6px;font-size:14px}.guide p,.guide li{font-size:12px;color:#50657d}.guide ol{padding-left:20px}.guide code{font-size:11px}.guide h3:first-child{margin-top:0}
     .view-controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-bottom:14px}.view-controls label{font-size:11px;font-weight:600;display:flex;flex-direction:column;gap:4px;max-width:100%;min-width:0}.view-controls select,.view-controls input{border:1px solid var(--border);border-radius:6px;padding:7px;max-width:100%;min-width:0}.view-controls label.check{flex-direction:row;align-items:center}.view-controls .grow{flex:1;min-width:160px}
-    .flow-scroll{overflow:auto;max-height:620px;border:1px solid var(--border);border-radius:8px;background:#f8fafd;position:relative}.flow-surface{position:relative;transform-origin:top left}.flow-surface svg{position:absolute;inset:0;pointer-events:none}.flow-node{position:absolute;width:204px;height:86px;text-align:left;border:1px solid #afbdd0;background:white;border-radius:9px;padding:9px;font-size:11px;overflow:hidden;overflow-wrap:anywhere;box-shadow:0 2px 6px #243c5910}.flow-node strong{display:block;max-height:33px;overflow:hidden;line-height:1.45}.flow-node small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.flow-node[data-kind=process],.flow-node[data-kind=action]{border-left:4px solid var(--computation)}.flow-node[data-kind=data]{border-left:4px solid var(--dataset)}.flow-node[aria-current=true]{outline:2px solid var(--accent);outline-offset:-2px;background:#eaf1ff}.flow-node.dim{opacity:.35}.flow-node.highlight{border-color:var(--accent);background:#edf4ff}.flow-node[data-kind=software]{border-left:4px solid var(--software)}
+    .flow-scroll{overflow:auto;max-height:620px;border:1px solid var(--border);border-radius:8px;background:#f8fafd;position:relative}.flow-surface{position:relative;transform-origin:top left}.flow-surface svg{position:absolute;inset:0;pointer-events:none}.flow-node{position:absolute;width:204px;height:86px;text-align:left;border:1px solid #afbdd0;background:white;border-radius:9px;padding:9px;font-size:11px;overflow:hidden;overflow-wrap:anywhere;box-shadow:0 2px 6px #243c5910}.flow-node strong{display:block;max-height:33px;overflow:hidden;line-height:1.45}.flow-node small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.flow-node[data-kind=process],.flow-node[data-kind=action]{border-left:4px solid var(--computation)}.flow-node[data-kind=data]{border-left:4px solid var(--dataset)}.flow-node[aria-current=true]{outline:2px solid var(--accent);outline-offset:-2px;background:#eaf1ff}.flow-node.dim{opacity:.35}.flow-node.highlight{border-color:var(--accent);background:#edf4ff}.flow-node[data-kind=software]{border-left:4px solid var(--software)}.software-list{display:grid;gap:12px;margin-top:14px}.software-card{border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px}.software-card h3{font-size:14px;margin:0 0 3px;overflow-wrap:anywhere}.software-card .software-id{font:10px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}.software-card h4{font-size:12px;margin:12px 0 6px}.software-task-list{display:flex;flex-direction:column;gap:7px}.software-task{border:1px solid var(--border);border-radius:6px;padding:8px;background:#f8fafd}.software-task summary{cursor:pointer;font-size:11px;overflow-wrap:anywhere}.software-task pre{max-height:300px}
     .drilldown{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}.drilldown h3{font-size:14px;overflow-wrap:anywhere;margin:0 0 8px}.task-list{display:flex;flex-direction:column;gap:5px;max-height:300px;overflow:auto}.task-list .button{justify-content:start;text-align:left;overflow-wrap:anywhere}.flow-status{font-size:11px;color:var(--muted);margin:10px 0}.summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}.summary-card{border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;color:var(--muted)}.summary-card strong{display:block;color:var(--ink);font-size:18px}.resource-chart{margin:15px 0}.bar-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(60px,2fr) minmax(70px,1fr);align-items:center;gap:8px;margin:9px 0;font-size:11px}.bar-row button{border:0;background:transparent;color:var(--accent);text-align:left;padding:0;overflow-wrap:anywhere}.bar-track{height:16px;background:#edf1f7;border-radius:4px;overflow:hidden}.bar-fill{height:100%;background:#7152b9;border-radius:4px}.resource-table{min-width:930px}.lineage-list h3{font-size:13px;margin:12px 0 5px}.lineage-list .value-link{max-width:100%}
     .drop-target{position:fixed;inset:12px;border:3px dashed #5e8fe9;border-radius:16px;background:#edf4fff2;z-index:9;display:grid;place-items:center;font-size:24px;font-weight:700;color:#254d89;pointer-events:none}
     [hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -95,7 +95,7 @@
     </aside>
     <main class="main">
       <div class="main-header"><div><h2>Follow the evidence</h2><div class="subtle">Select any entity to explore its connections.</div></div><div class="history"><button class="button" id="back" aria-label="Previous entity" disabled>&larr;</button><button class="button" id="forward" aria-label="Next entity" disabled>&rarr;</button><button class="button" id="home">Crate root</button></div></div>
-      <div class="tabs" aria-label="Explorer views"><button data-view="map" aria-pressed="true">Connection map</button><button data-view="workflow" aria-pressed="false">Workflow DAG</button><button data-view="lineage" aria-pressed="false">Output lineage</button><button data-view="resources" aria-pressed="false">Resources</button><button data-view="relations" aria-pressed="false">All relationships <span id="edge-count"></span></button><button data-view="guide" aria-pressed="false">About this view</button></div>
+      <div class="tabs" aria-label="Explorer views"><button data-view="map" aria-pressed="true">Connection map</button><button data-view="workflow" aria-pressed="false">Workflow DAG</button><button data-view="lineage" aria-pressed="false">Output lineage</button><button data-view="resources" aria-pressed="false">Resources</button><button data-view="software" aria-pressed="false">Software &amp; commands</button><button data-view="relations" aria-pressed="false">All relationships <span id="edge-count"></span></button><button data-view="guide" aria-pressed="false">About this view</button></div>
       <section id="map-view" class="panel" aria-label="Connection map">
         <p class="graph-help">Read arrows as <strong>source &rarr; property &rarr; target</strong>. Click a connected entity to make it the focus.</p>
         <div class="map-scroll"><div class="map" id="connection-map">
@@ -132,6 +132,12 @@
         <div id="resource-chart" class="resource-chart" aria-label="Resource comparison by process"></div>
         <div class="table-scroll"><table class="resource-table"><thead><tr><th>Task / process</th><th>Status</th><th>Runtime</th><th>CPU (% of one core)</th><th>Allocated CPU used</th><th>Requested CPUs</th><th>Peak RSS</th><th>Requested memory</th><th>Disk read / write</th></tr></thead><tbody id="resource-rows"></tbody></table></div>
       </section>
+      <section id="software-view" class="panel" hidden aria-label="Software and commands">
+        <p class="graph-help">Software is supporting execution context, not a data-lineage step. Select a tool to see which recorded tasks used it and inspect their embedded task scripts when available.</p>
+        <div class="view-controls"><label class="grow">Software<select id="software-select"></select></label></div>
+        <div id="software-status" class="flow-status" role="status"></div>
+        <div id="software-list" class="software-list"></div>
+      </section>
       <section id="guide-view" class="panel guide" hidden aria-label="Explorer guide">
         <h3>A map of the metadata, not just one output</h3>
         <p>Every entity in <code>@graph</code> is available in the left-hand list. No workflow steps, schemas, configuration files or sibling outputs are discarded. The map shows one entity's neighborhood at a time to keep it readable.</p>
@@ -143,6 +149,7 @@
         <p>"Workflow DAG" groups observed tasks by their recorded process orchestration, not by stripping sample names. Solid edges are data relationships; dashed edges are channel dependencies recorded by Nextflow. Disconnected processes remain visible. A process graph can contain cycles after grouping repeated executions; these are identified rather than discarded.</p>
         <p>"Output lineage" defaults to a process-level overview: repeated task executions are grouped, intermediate files remain visible, and upstream boundaries are listed explicitly. The task detail mode expands the same path to individual executions. Software and scalar values are optional diagram layers. This is task-level provenance: all declared inputs of a producing task are shown, not proof that each input contributed bytes to a particular output. Scalar values are not matched across tasks by equality. Directory members and dependencies absent from the crate cannot be reconstructed.</p>
         <p>"Resources" uses numeric trace metrics embedded by nf-prov-jds with preview or evidence enabled. It does not import the separate Nextflow HTML report or require a trace file. Older crates remain navigable but cannot supply missing measurements. Failed attempts are included when present; cached measurements are optional and excluded from totals by default. Runtimes are summed task runtimes, not workflow wall time; peaks are maxima, not simultaneous memory usage. CPU allocation usage is the unweighted mean of per-task CPU percentages divided by requested cores.</p>
+        <p>"Software &amp; commands" gathers software entities from recorded task instruments and lists the tasks that used each one. Expanded task scripts are shown there when evidence capture embedded them; the entity details panel remains the complete view of the original metadata.</p>
         <h3>File access and external references</h3>
         <p>Only HTTP(S) links and safe crate-relative content paths are clickable. A relative path assumes this page is beside the loaded crate's metadata. A saved page must be placed beside the corresponding crate to retain working relative file links. A browser file picker does not grant this page access to the rest of that crate.</p>
         <p>Original-machine <code>localPath</code> values are displayed, not treated as packaged files. An HTTP(S) link is opened only when you click it. References without an entity definition remain browsable and are labeled "Reference only"; their metadata is not fetched.</p>
@@ -307,7 +314,12 @@
         const properties = new Map(values(action.entity.additionalProperty).filter(p => p && typeof p.name === 'string' && p.name.startsWith('trace.')).map(p => [p.name.slice(6),p.value]));
         metrics.set(action.id,properties);
       }
-      return {actions,taskGroup,groups,producers,reverse,flowEdges,processEdges:[...processEdges.values()],metrics};
+      const softwareUsers = new Map();
+      for (const action of actions.values()) for (const software of action.software) {
+        if (!softwareUsers.has(software)) softwareUsers.set(software,[]);
+        softwareUsers.get(software).push(action.id);
+      }
+      return {actions,taskGroup,groups,producers,reverse,flowEdges,processEdges:[...processEdges.values()],metrics,softwareUsers};
     }
     function ancestors(output) {
       const found = new Set(), pending = [output];
@@ -334,6 +346,12 @@
       const all = make('option','','All processes');all.value = '';$('resource-process').replaceChildren(all);
       for (const group of analysis.groups.values()) {
         const option = make('option','',group.label);option.value = group.id;$('resource-process').append(option);
+      }
+      const softwareOptions = [...analysis.softwareUsers.keys()].sort((a,b) => nameOf(entity(a)).localeCompare(nameOf(entity(b))));
+      const softwareSelect = $('software-select');softwareSelect.replaceChildren();
+      const allSoftware = make('option','','All software');allSoftware.value = '';softwareSelect.append(allSoftware);
+      for (const id of softwareOptions) {
+        const option = make('option','',nameOf(entity(id)));option.value = id;softwareSelect.append(option);
       }
       $('resource-search').value = '';$('resource-cached').checked = false;
       $('workflow-tasks').replaceChildren();$('workflow-graph').replaceChildren();$('lineage-graph').replaceChildren();
@@ -528,6 +546,33 @@
         row.append(cell);
         for (const text of [taskStatus(id),formatMetric(metricNumber(m,'realtime'),'realtime'),formatMetric(metricNumber(m,'%cpu'),'%cpu'),formatMetric(cpuUsed(m),'cpu'),formatMetric(metricNumber(m,'cpus'),'cpus'),formatMetric(metricNumber(m,'peak_rss'),'peak_rss'),formatMetric(metricNumber(m,'memory'),'memory'),formatMetric(metricNumber(m,'read_bytes'),'read_bytes')+' / '+formatMetric(metricNumber(m,'write_bytes'),'write_bytes')]) row.append(make('td','',text));
         rows.append(row);
+      }
+    }
+    function scriptsForAction(id) {
+      const e = entity(id), resolve = refs => values(refs).map(ref => model.index.get(typeof ref === 'string' ? ref : ref?.['@id'])).filter(Boolean);
+      const subjects = resolve(e.subjectOf);
+      const candidates = [...resolve(e.hasPart),...subjects,...subjects.flatMap(subject => resolve(subject.hasPart))];
+      return [...new Map(candidates.filter(candidate => typeOf(candidate) === 'Script').map(script => [script['@id'],script])).values()];
+    }
+    function renderSoftware() {
+      const selectedSoftware = $('software-select').value, ids = [...analysis.softwareUsers.keys()].filter(id => !selectedSoftware || id === selectedSoftware);
+      const list = $('software-list');list.replaceChildren();
+      $('software-status').textContent = ids.length ? ids.length+' software entities; select a task to inspect its recorded command or script.' : 'No task software entities were recorded in this crate.';
+      for (const softwareId of ids) {
+        const card = make('article','software-card'), softwareEntity = entity(softwareId), users = analysis.softwareUsers.get(softwareId) || [];
+        const heading = make('h3'), link = make('button','value-link',nameOf(softwareEntity));link.title = softwareId;link.addEventListener('click',() => navigate(softwareId));heading.append(link);
+        card.append(heading,make('div','software-id',softwareId),make('h4','',users.length+' recorded task uses'));
+        const tasks = make('div','software-task-list');
+        for (const taskId of users) {
+          const task = make('details','software-task'), summary = make('summary', '',nameOf(entity(taskId))+' | '+taskStatus(taskId));
+          const groupId = analysis.taskGroup.get(taskId), group = analysis.groups.get(groupId);
+          task.append(summary,make('div','hint',group ? 'Process: '+group.label : 'Process grouping unavailable'));
+          const scripts = scriptsForAction(taskId);
+          if (scripts.length) for (const script of scripts) task.append(make('div','hint',nameOf(script)),make('pre','',typeof script.text === 'string' ? script.text : JSON.stringify(script.text,null,2)));
+          else task.append(make('p','hint','No embedded task script is available for this execution. The task entity and original JSON remain available in the entity details panel.'));
+          tasks.append(task);
+        }
+        card.append(tasks);list.append(card);
       }
     }
     function entity(id) { return model.index.get(id) || {'@id':id}; }
@@ -737,12 +782,13 @@
       setDetailView(detailView);
     }
     function setView(next) {
-      view = next;for (const name of ['map','workflow','lineage','resources','relations','guide']) $(name+'-view').hidden = name !== next;
+      view = next;for (const name of ['map','workflow','lineage','resources','software','relations','guide']) $(name+'-view').hidden = name !== next;
       document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.view === next)));scheduleConnectors();
       if (model && analysis) {
         if (next === 'workflow') renderWorkflow();
         if (next === 'lineage') renderLineage();
         if (next === 'resources') renderResources();
+        if (next === 'software') renderSoftware();
       }
     }
     function setDetailView(next) {
@@ -768,6 +814,7 @@
     for (const id of ['workflow-output','workflow-zoom']) $(id).addEventListener('change',renderWorkflow);
     for (const id of ['lineage-output','lineage-detail','lineage-values','lineage-software','lineage-zoom']) $(id).addEventListener('change',renderLineage);
     for (const id of ['resource-process','resource-metric','resource-cached']) $(id).addEventListener('change',renderResources);
+    $('software-select').addEventListener('change',renderSoftware);
     $('resource-search').addEventListener('input',renderResources);
     document.querySelectorAll('[data-detail]').forEach(b => b.addEventListener('click',() => setDetailView(b.dataset.detail)));
     $('guide-button').addEventListener('click',() => setView('guide'));
@@ -784,7 +831,7 @@
       if (!currentCrate) {message('Load a metadata file before saving a portable page.',true);return;}
       const copy = document.documentElement.cloneNode(true);
       copy.querySelector('#embedded-crate').textContent = JSON.stringify(currentCrate).replace(/</g,'\\u003c');
-      for (const id of ['entity-list','stats','incoming','outgoing','center-node','relation-rows','properties','raw-json','paths','workflow-graph','workflow-tasks','workflow-status','lineage-graph','lineage-status','lineage-boundaries','resource-rows','resource-chart','resource-summary','resource-status','resource-process','workflow-output','lineage-output']) copy.querySelector('#'+id).replaceChildren();
+      for (const id of ['entity-list','stats','incoming','outgoing','center-node','relation-rows','properties','raw-json','paths','workflow-graph','workflow-tasks','workflow-status','lineage-graph','lineage-status','lineage-boundaries','resource-rows','resource-chart','resource-summary','resource-status','resource-process','workflow-output','lineage-output','software-select','software-list']) copy.querySelector('#'+id).replaceChildren();
       copy.querySelector('#message').hidden = true;copy.querySelector('#drop-target').hidden = true;
       download('<!doctype html>\n'+copy.outerHTML,'text/html','metadata-explorer.html');message('Portable page saved with the currently loaded metadata embedded. Keep it beside that crate for relative file links.');
     });

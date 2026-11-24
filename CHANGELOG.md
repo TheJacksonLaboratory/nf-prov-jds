@@ -14,6 +14,7 @@ entries refer to the [upstream repository](https://github.com/nextflow-io/nf-pro
 - Add per-tool software annotations and an offline metadata explorer.
 - Add native resource charts, a process-grouped workflow DAG and interactive output ancestry; retain raw trace metrics and channel dependencies in WRROC.
 - Simplify the default output-lineage diagram by grouping task executions by process, with optional task, scalar-value and software detail layers.
+- Add a dedicated Software & commands explorer for tool usage and embedded task scripts, while retaining the complete entity-detail view.
 - Request task monitoring with preview or evidence enabled and include observed failed attempts/workflows, without requiring full evidence capture for the preview.
 - Add opt-in expanded task scripts, resolved task values, execution settings and source evidence.
 - Add a repository URL fallback and reference-only input packaging.

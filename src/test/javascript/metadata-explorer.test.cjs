@@ -51,6 +51,7 @@ test('all outputs are selectable; ancestry excludes workflow aggregates, sibling
     assert.equal(api.analysis.groups.get('#step-first').tasks.length, 2);
     assert.equal(api.analysis.processEdges.filter(e => e.source === '#step-first' && e.target === '#step-final').length, 1);
     assert.equal(api.analysis.processEdges.find(e => e.target === '#step-final').kind, 'data');
+    assert.equal(api.analysis.softwareUsers.get('#tool').length, 1);
 });
 
 test('fan-in and publication preserve both branches without adding downstream siblings', () => {
