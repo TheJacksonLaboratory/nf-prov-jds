@@ -24,7 +24,7 @@ Source and issues: [TheJacksonLaboratory/nf-prov-jds](https://github.com/TheJack
 | 0.1.x   | 26.10 |
 
 The inherited release history in the [changelog](CHANGELOG.md) refers to upstream
-`nf-prov`, not releases of this fork. `nf-prov-jds 0.1.0` is based on `nf-prov 1.8.0`.
+`nf-prov`, not releases of this fork. `nf-prov-jds 0.1.1` is based on `nf-prov 1.8.0`.
 
 ## Get Started
 
@@ -35,7 +35,7 @@ To enable and configure `nf-prov-jds`, include the following snippet in your Nex
 
 ```groovy
 plugins {
-  id 'nf-prov-jds@0.1.0'
+  id 'nf-prov-jds@0.1.1'
 }
 
 prov {
