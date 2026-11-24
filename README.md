@@ -80,6 +80,52 @@ Path-containing tuple staging markers (including Nextflow's internal `$` binding
 are not exported as scalar values; their file lineage remains in normal task
 input relationships.
 
+### Tool provenance
+
+For Workflow Run RO-Crate output, processes can declare the tools they use with
+`ext.prov.tools`. Each tool is a separate object, and can include:
+
+- `name` (required)
+- `version`
+- `url`
+- `author` (a name or list of names)
+- `description`
+- `format`
+- `keywords` (a string or list of strings)
+
+For example:
+
+```groovy
+process ALIGN {
+  ext prov: [
+    tools: [
+      [
+        name: 'STAR',
+        version: '2.7.9a',
+        url: 'https://github.com/alexdobin/STAR',
+        author: 'Alexander Dobin',
+        format: 'application/x-executable',
+        keywords: ['alignment', 'rnaseq'],
+        description: 'RNA-Seq read alignment.'
+      ]
+    ]
+  ]
+
+  // input, output and script declarations ...
+}
+```
+
+The same `ext.prov` map can be assigned in a `process.withName` configuration
+selector. Version values must be quoted strings, and URLs must be absolute
+HTTP(S) URLs without credentials. Unknown fields and malformed annotations
+raise an error and prevent the WRROC report from being written.
+
+These are declared tool annotations, not versions measured from executed
+binaries. The plugin does not automatically ingest `versions.yml`, trace every
+shell command, or assert that every listed tool ran on every conditional path.
+See [Per-process software annotations](docs/WRROC.md#per-process-software-annotations)
+for the complete behavior and generated relationships.
+
 ## Configuration
 
 *The `file`, `format`, and `overwrite` options have been deprecated since version 1.2.0. Use `formats` instead.*

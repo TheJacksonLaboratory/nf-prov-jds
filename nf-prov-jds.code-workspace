@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "ro-object",
+			"path": "../../../Desktop/Temp_Files_From_SumnerEtc/ro-object"
+		},
+		{
+			"name": "nf-prov-jds",
+			"path": "."
+		},
+		{
+			"name": "ngs-ops-nf-pipelines",
+			"path": "../ngs-ops/ngs-ops-nf-pipelines"
+		}
+	],
+	"settings": {}
+}
