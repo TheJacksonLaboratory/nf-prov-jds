@@ -31,7 +31,7 @@
     .type-icon{background:color-mix(in srgb,var(--type-color) 12%,white);color:var(--type-color);border:1px solid color-mix(in srgb,var(--type-color) 25%,white);width:27px;height:27px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;font-size:10px;font-weight:800}
     .type-Dataset{--type-color:var(--dataset)}.type-Computation{--type-color:var(--computation)}.type-Software,.type-Workflow,.type-Script{--type-color:var(--software)}.type-ROCrate{--type-color:var(--crate)}.type-Schema,.type-Other,.type-Reference,.type-Parameter,.type-Value,.type-Agent,.type-Process{--type-color:var(--other)}
     .main{padding:20px;min-width:0}.main-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}.main-header h2{font-size:16px;margin:0}.history{display:flex;gap:5px}.history .button{padding:5px 10px}
-    .tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--border);margin-bottom:0}.tabs button{border:0;background:transparent;padding:10px 13px;font-size:12px;font-weight:650;color:var(--muted);border-bottom:2px solid transparent}.tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+    .tabs{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px 20px;border-bottom:1px solid var(--border);margin-bottom:0}.tab-group{display:flex;flex-direction:column;align-items:flex-start;gap:0}.tab-group+.tab-group{border-left:1px solid var(--border);padding-left:16px}.tab-group-label{font-size:10px;font-weight:750;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);padding:0 9px 4px}.tab-options{display:flex;gap:2px}.tabs button{border:0;background:transparent;padding:8px 9px;font-size:12px;font-weight:650;color:var(--muted);border-bottom:2px solid transparent}.tabs button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
     .panel{border:1px solid var(--border);background:#fff;border-radius:0 0 12px 12px;padding:17px;box-shadow:0 3px 12px #243c5910}.graph-help{font-size:12px;color:var(--muted);margin:0 0 17px}
     .map-scroll{overflow:auto;max-height:660px;border:1px solid #e8edf4;border-radius:9px;background:radial-gradient(#dce4ee 1px,transparent 1px);background-size:18px 18px}
     .map{display:grid;grid-template-columns:minmax(205px,1fr) 196px minmax(205px,1fr);gap:36px;padding:22px 18px;position:relative;min-width:770px;align-items:start}
@@ -71,7 +71,7 @@
   <header class="topbar">
     <div class="brand"><div class="brand-icon" aria-hidden="true">&#9671;</div><div><div class="eyebrow">RO-Crate / full graph</div><h1>Metadata explorer</h1></div></div>
     <div class="toolbar">
-      <button class="button" id="guide-button">How to use</button>
+      <button class="button" id="guide-button">About this explorer</button>
       <button class="button" id="download-page">Save portable page</button>
       <button class="button primary" id="open-file">Load another crate</button>
       <input type="file" id="file-input" accept=".json,.jsonld,application/json,application/ld+json" hidden>
@@ -84,7 +84,8 @@
   <div id="message" role="status" hidden></div>
   <div class="workspace">
     <aside class="sidebar" aria-label="Entity browser">
-      <p class="section-label">Explore the crate</p>
+      <p class="section-label">Browse entities</p>
+      <p class="subtle">Search the complete RO-Crate graph. Select an entity to open its metadata and relationships.</p>
       <label class="search-label" for="search">Find an entity <span class="subtle">/</span></label>
       <input id="search" type="search" placeholder="Name, ID, path or metadata..." autocomplete="off">
       <label class="sr-only" for="type-filter">Entity type</label><select id="type-filter"><option value="">All entity types</option></select>
@@ -94,8 +95,12 @@
       <div id="list-count" aria-live="polite"></div><nav id="entity-list" class="entity-list" aria-label="Entities"></nav>
     </aside>
     <main class="main">
-      <div class="main-header"><div><h2>Follow the evidence</h2><div class="subtle">Select any entity to explore its connections.</div></div><div class="history"><button class="button" id="back" aria-label="Previous entity" disabled>&larr;</button><button class="button" id="forward" aria-label="Next entity" disabled>&rarr;</button><button class="button" id="home">Crate root</button></div></div>
-      <div class="tabs" aria-label="Explorer views"><button data-view="map" aria-pressed="true">Connection map</button><button data-view="workflow" aria-pressed="false">Workflow DAG</button><button data-view="lineage" aria-pressed="false">Output lineage</button><button data-view="resources" aria-pressed="false">Resources</button><button data-view="software" aria-pressed="false">Software &amp; commands</button><button data-view="relations" aria-pressed="false">All relationships <span id="edge-count"></span></button><button data-view="guide" aria-pressed="false">About this view</button></div>
+      <div class="main-header"><div><h2>Explore provenance</h2><div class="subtle">Browse individual entities or analyze the recorded workflow run.</div></div><div class="history"><button class="button" id="back" aria-label="Previous entity" disabled>&larr;</button><button class="button" id="forward" aria-label="Next entity" disabled>&rarr;</button><button class="button" id="home">Crate root</button></div></div>
+      <nav class="tabs" aria-label="Explorer views">
+        <div class="tab-group"><span class="tab-group-label">Browse</span><div class="tab-options"><button data-view="map" aria-pressed="true">Connection map</button><button data-view="relations" aria-pressed="false">All relationships <span id="edge-count"></span></button></div></div>
+        <div class="tab-group"><span class="tab-group-label">Analyze the run</span><div class="tab-options"><button data-view="workflow" aria-pressed="false">Workflow DAG</button><button data-view="lineage" aria-pressed="false">Output lineage</button><button data-view="resources" aria-pressed="false">Resources</button><button data-view="software" aria-pressed="false">Software &amp; commands</button></div></div>
+        <div class="tab-group"><span class="tab-group-label">Guide</span><div class="tab-options"><button data-view="guide" aria-pressed="false">About this explorer</button></div></div>
+      </nav>
       <section id="map-view" class="panel" aria-label="Connection map">
         <p class="graph-help">Read arrows as <strong>source &rarr; property &rarr; target</strong>. Click a connected entity to make it the focus.</p>
         <div class="map-scroll"><div class="map" id="connection-map">
@@ -139,13 +144,14 @@
         <div id="software-list" class="software-list"></div>
       </section>
       <section id="guide-view" class="panel guide" hidden aria-label="Explorer guide">
-        <h3>A map of the metadata, not just one output</h3>
-        <p>Every entity in <code>@graph</code> is available in the left-hand list. No workflow steps, schemas, configuration files or sibling outputs are discarded. The map shows one entity's neighborhood at a time to keep it readable.</p>
-        <ol><li>Search for a filename, tool, process, identifier or value. Type filters and root input/output filters can be combined.</li><li>Select an entity. Sources referencing it appear on the left; its targets appear on the right. Relationship groups show five entries initially; use "Show all" for the rest.</li><li>Click a neighbor to follow the graph. Use the arrows to retrace your steps, or "Crate root" to start over.</li><li>The details panel preserves all properties, commands, parameters and original JSON values. "All relationships" includes nested references and their exact paths.</li></ol>
+        <h3>How to use this explorer</h3>
+        <ol><li>Use <strong>Browse entities</strong> in the left sidebar to search the complete <code>@graph</code>. Type filters and run input/output filters can be combined.</li><li>Select an entity to see its incoming and outgoing connections in the <strong>Connection map</strong>. The inspector on the right preserves its properties, commands, parameters and original JSON.</li><li>Use the history buttons or <strong>Crate root</strong> to navigate entity details. <strong>All relationships</strong> shows exact property paths for the selected entity.</li><li>Use <strong>Analyze the run</strong> for views organized around execution rather than individual metadata entities.</li></ol>
+        <h3>Analyze the run</h3>
+        <ul><li><strong>Workflow DAG:</strong> process-level workflow structure with task drill-down.</li><li><strong>Output lineage:</strong> the recorded ancestry of a selected output. The default groups tasks by process; task, scalar-value and software detail can be enabled.</li><li><strong>Resources:</strong> native task trace metrics, grouped by process, with task-level filtering.</li><li><strong>Software &amp; commands:</strong> tools used by recorded tasks and embedded task scripts when evidence capture made them available.</li></ul>
         <h3>Reuse this page</h3>
         <p>Open this HTML directly in a browser. Use "Load another crate" or drop an RO-Crate metadata JSON file onto the page. It is processed locally; nothing is sent to a service. Array and ID-keyed-object forms of <code>@graph</code> are accepted.</p>
         <p>After loading a different crate, "Save portable page" embeds it in a new self-contained HTML download. Reopening that saved page restores the embedded data. Loading a file alone does not overwrite this page or the metadata on disk.</p>
-        <h3>Workflow, output lineage and resources</h3>
+        <h3>Interpretation and scope</h3>
         <p>"Workflow DAG" groups observed tasks by their recorded process orchestration, not by stripping sample names. Solid edges are data relationships; dashed edges are channel dependencies recorded by Nextflow. Disconnected processes remain visible. A process graph can contain cycles after grouping repeated executions; these are identified rather than discarded.</p>
         <p>"Output lineage" defaults to a process-level overview: repeated task executions are grouped, intermediate files remain visible, and upstream boundaries are listed explicitly. The task detail mode expands the same path to individual executions. Software and scalar values are optional diagram layers. This is task-level provenance: all declared inputs of a producing task are shown, not proof that each input contributed bytes to a particular output. Scalar values are not matched across tasks by equality. Directory members and dependencies absent from the crate cannot be reconstructed.</p>
         <p>"Resources" uses numeric trace metrics embedded by nf-prov-jds with preview or evidence enabled. It does not import the separate Nextflow HTML report or require a trace file. Older crates remain navigable but cannot supply missing measurements. Failed attempts are included when present; cached measurements are optional and excluded from totals by default. Runtimes are summed task runtimes, not workflow wall time; peaks are maxima, not simultaneous memory usage. CPU allocation usage is the unweighted mean of per-task CPU percentages divided by requested cores.</p>
