@@ -12,6 +12,7 @@ function explorer(crate) {
         globalThis.api = {
             load(crate) { model = createModel(crate); analysis = createAnalysis(); },
             ancestors, cpuUsed, metricNumber, formatMetric,
+            buildLineage,
             get model() { return model; }, get analysis() { return analysis; }
         };
     `, context);
@@ -81,6 +82,28 @@ test('channel-only links are visible in the process graph but never invent outpu
     const api = explorer(crate);
     assert.equal(api.analysis.processEdges.find(e => e.target === '#step-final').kind, 'channel');
     assert.ok(!api.ancestors('out-a').has('#a1'));
+});
+
+test('lineage defaults to process-level nodes and can expand to task detail', () => {
+    const api = explorer(fixture());
+    const overview = api.buildLineage('out-a');
+    assert.equal(overview.nodes.filter(node => node.kind === 'action').map(node => node.id).sort().join(','), '#step-final,#step-first');
+    assert.equal(overview.nodes.some(node => node.id === '#a1'), false);
+    assert.ok(overview.edges.some(edge => edge.source === 'mid-a' && edge.target === '#step-final'));
+    const detail = api.buildLineage('out-a', 'task');
+    assert.ok(detail.nodes.some(node => node.id === '#a1'));
+    assert.ok(detail.nodes.some(node => node.id === '#b1'));
+    assert.equal(detail.nodes.some(node => node.id === '#step-first'), false);
+});
+
+test('lineage hides scalar and software support nodes unless requested', () => {
+    const api = explorer(fixture());
+    const overview = api.buildLineage('out-a');
+    assert.equal(overview.software.size, 0);
+    assert.equal(overview.nodes.some(node => node.id === '#tool'), false);
+    const expanded = api.buildLineage('out-a', 'process', true, true);
+    assert.ok(expanded.software.has('#tool'));
+    assert.ok(expanded.nodes.some(node => node.id === '#tool'));
 });
 
 test('inverse generatedBy links, reference-only inputs and cycles remain navigable', () => {

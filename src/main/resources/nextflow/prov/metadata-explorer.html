@@ -119,8 +119,8 @@
         <div id="workflow-tasks" class="drilldown"></div>
       </section>
       <section id="lineage-view" class="panel" hidden aria-label="Output lineage">
-        <p class="graph-help">Follow a final output from external inputs through task executions, intermediate results and publication. Only explicit data links are traversed; shared values, channel dependencies and similar filenames do not prove file ancestry.</p>
-        <div class="view-controls"><label class="grow">Output<select id="lineage-output"></select></label><label>Zoom<select id="lineage-zoom"><option value="fit">Fit width</option><option value=".6">60%</option><option value=".8">80%</option><option value="1" selected>100%</option><option value="1.25">125%</option></select></label></div>
+        <p class="graph-help">Follow a final output from external inputs through the processes that produced it. The overview groups repeated task executions by process while retaining intermediate files. Open task detail when you need the exact execution-level path.</p>
+        <div class="view-controls"><label class="grow">Output<select id="lineage-output"></select></label><label>Detail<select id="lineage-detail"><option value="process" selected>Process overview</option><option value="task">Task executions</option></select></label><label class="check"><input id="lineage-values" type="checkbox">Show scalar values</label><label class="check"><input id="lineage-software" type="checkbox">Show software</label><label>Zoom<select id="lineage-zoom"><option value="fit">Fit width</option><option value=".6">60%</option><option value=".8">80%</option><option value="1" selected>100%</option><option value="1.25">125%</option></select></label></div>
         <div id="lineage-status" class="flow-status" role="status"></div>
         <div id="lineage-graph" class="flow-scroll" aria-label="Output ancestry graph"></div>
         <div id="lineage-boundaries" class="lineage-list"></div>
@@ -141,7 +141,7 @@
         <p>After loading a different crate, "Save portable page" embeds it in a new self-contained HTML download. Reopening that saved page restores the embedded data. Loading a file alone does not overwrite this page or the metadata on disk.</p>
         <h3>Workflow, output lineage and resources</h3>
         <p>"Workflow DAG" groups observed tasks by their recorded process orchestration, not by stripping sample names. Solid edges are data relationships; dashed edges are channel dependencies recorded by Nextflow. Disconnected processes remain visible. A process graph can contain cycles after grouping repeated executions; these are identified rather than discarded.</p>
-        <p>"Output lineage" traces all recorded upstream branches for the chosen output, including publication and software. Boundaries without a producer are listed explicitly. This is task-level provenance: all declared inputs of a producing task are shown, not proof that each input contributed bytes to a particular output. Scalar values are not matched across tasks by equality. Directory members and dependencies absent from the crate cannot be reconstructed.</p>
+        <p>"Output lineage" defaults to a process-level overview: repeated task executions are grouped, intermediate files remain visible, and upstream boundaries are listed explicitly. The task detail mode expands the same path to individual executions. Software and scalar values are optional diagram layers. This is task-level provenance: all declared inputs of a producing task are shown, not proof that each input contributed bytes to a particular output. Scalar values are not matched across tasks by equality. Directory members and dependencies absent from the crate cannot be reconstructed.</p>
         <p>"Resources" uses numeric trace metrics embedded by nf-prov-jds with preview or evidence enabled. It does not import the separate Nextflow HTML report or require a trace file. Older crates remain navigable but cannot supply missing measurements. Failed attempts are included when present; cached measurements are optional and excluded from totals by default. Runtimes are summed task runtimes, not workflow wall time; peaks are maxima, not simultaneous memory usage. CPU allocation usage is the unweighted mean of per-task CPU percentages divided by requested cores.</p>
         <h3>File access and external references</h3>
         <p>Only HTTP(S) links and safe crate-relative content paths are clickable. A relative path assumes this page is beside the loaded crate's metadata. A saved page must be placed beside the corresponding crate to retain working relative file links. A browser file picker does not grant this page access to the rest of that crate.</p>
@@ -421,23 +421,57 @@
       const channelEdges = edges.filter(e => e.kind === 'channel').length;
       $('workflow-status').textContent = nodes.length ? nodes.length+' observed processes; '+edges.length+' dependencies ('+channelEdges+' channel-only). Scroll to explore.'+(path ? ' Highlighted: '+active.size+' processes with explicit ancestry for this output.' : '')+(cyclic ? ' Cycle or cycle-dependent nodes after grouping: '+cyclic+'. Placed in the final column; all edges are retained.' : '') : 'No task/process executions were recorded in this crate.';
     }
+    function buildLineage(output, detail = 'process', includeValues = false, includeSoftware = false) {
+      const path = ancestors(output), detailed = detail === 'task', tasks = [...path].filter(id => analysis.actions.has(id));
+      const actionNode = new Map(), nodes = new Map(), edges = [], edgeKeys = new Set(), software = new Set();
+      const addNode = (id,node) => {if (!nodes.has(id)) nodes.set(id,node);};
+      const addEdge = (source,target,kind = 'data') => {
+        if (source === target || !nodes.has(source) || !nodes.has(target)) return;
+        const key = JSON.stringify([source,target,kind]);
+        if (!edgeKeys.has(key)) {edgeKeys.add(key);edges.push({source,target,kind});}
+      };
+      for (const id of tasks) {
+        const action = analysis.actions.get(id), groupId = detailed ? id : (analysis.taskGroup.get(id) || id);
+        actionNode.set(id,groupId);
+        if (detailed) addNode(id,{id,label:nameOf(entity(id)),kind:'action',subtitle:action.publish ? 'Publication' : taskStatus(id)});
+        else {
+          const group = analysis.groups.get(groupId);
+          addNode(groupId,{id:groupId,label:group?.label || nameOf(entity(id)),kind:'action',subtitle:(group?.tasks.length || 1)+' task executions'});
+        }
+      }
+      for (const id of path) if (!analysis.actions.has(id) && (includeValues || category(id) !== 'Value')) {
+        addNode(id,{id,label:nameOf(entity(id)),kind:'data',highlight:id === output,
+          subtitle:model.inputs.has(id) ? 'Declared workflow input' : id === output ? 'Selected final output' : 'Data / file'});
+      }
+      if (!nodes.has(output)) addNode(output,{id:output,label:nameOf(entity(output)),kind:'data',highlight:true,subtitle:'Selected final output'});
+      for (const edge of analysis.flowEdges) {
+        if (!path.has(edge.source) || !path.has(edge.target)) continue;
+        const source = analysis.actions.has(edge.source) ? actionNode.get(edge.source) : edge.source;
+        const target = analysis.actions.has(edge.target) ? actionNode.get(edge.target) : edge.target;
+        addEdge(source,target,'data');
+      }
+      if (includeSoftware) {
+        for (const id of tasks) for (const instrument of analysis.actions.get(id).software) {
+          if (!model.index.has(instrument)) continue;
+          software.add(instrument);
+          addNode(instrument,{id:instrument,label:nameOf(entity(instrument)),kind:'software',subtitle:'Software context'});
+          addEdge(actionNode.get(id),instrument,'software');
+          for (const tool of refIds(entity(instrument).hasPart)) if (['Software','Script'].includes(category(tool)) && model.index.has(tool)) {
+            software.add(tool);
+            addNode(tool,{id:tool,label:nameOf(entity(tool)),kind:'software',subtitle:'Software component'});
+            addEdge(instrument,tool,'software');
+          }
+        }
+      }
+      return {path,tasks,nodes:[...nodes.values()],edges,software};
+    }
     function renderLineage() {
       const output = $('lineage-output').value, boundaries = $('lineage-boundaries');boundaries.replaceChildren();
       if (!output) { $('lineage-graph').replaceChildren();$('lineage-status').textContent = 'No declared outputs were found. Use the connection map to inspect individual entities.';return; }
-      const path = ancestors(output), tasks = [...path].filter(id => analysis.actions.has(id)), software = new Set(), supportEdges = [], supports = new Set();
-      for (const id of tasks) for (const instrument of analysis.actions.get(id).software) {
-        software.add(instrument);supportEdges.push({source:instrument,target:id,kind:'software'});
-        for (const tool of refIds(entity(instrument).hasPart)) if (['Software','Script'].includes(category(tool))) {
-          software.add(tool);
-          const key = JSON.stringify([tool,instrument]);
-          if (!supports.has(key)) { supports.add(key);supportEdges.push({source:tool,target:instrument,kind:'software'}); }
-        }
-      }
-      const ids = new Set([...path,...software]), edges = analysis.flowEdges.filter(e => path.has(e.source) && path.has(e.target)).concat(supportEdges);
-      const nodes = [...ids].map(id => ({id,label:nameOf(entity(id)),kind:software.has(id) ? 'software' : analysis.actions.has(id) ? 'action' : 'data',highlight:id === output,subtitle:software.has(id) ? 'Software context (dashed)' : analysis.actions.has(id) ? (analysis.actions.get(id).publish ? 'Publication' : taskStatus(id)) : model.inputs.has(id) ? 'Declared workflow input' : id === output ? 'Selected final output' : category(id) === 'Value' ? 'Value: '+JSON.stringify(entity(id).value ?? null).slice(0,70) : 'Data / value'}));
-      const cyclic = drawFlow($('lineage-graph'),nodes,edges,navigate,$('lineage-zoom').value);
-      const leaves = [...path].filter(id => !analysis.actions.has(id) && !(analysis.reverse.get(id)?.size));
-      $('lineage-status').textContent = tasks.length+' recorded actions; '+(path.size-tasks.length)+' data/value nodes; '+software.size+' software entities. Left → right: inputs → executions → output.'+(cyclic ? ' Cycles or cycle-dependent nodes: '+cyclic+'; edges retained.' : '')+(!analysis.producers.has(output) ? ' No producing action is recorded for this output.' : '');
+      const built = buildLineage(output,$('lineage-detail').value,$('lineage-values').checked,$('lineage-software').checked);
+      const cyclic = drawFlow($('lineage-graph'),built.nodes,built.edges,navigate,$('lineage-zoom').value);
+      const leaves = [...built.path].filter(id => !analysis.actions.has(id) && !(analysis.reverse.get(id)?.size));
+      $('lineage-status').textContent = ($('lineage-detail').value === 'process' ? [...new Set(built.tasks.map(id => analysis.taskGroup.get(id) || id))].length+' processes' : built.tasks.length+' recorded actions')+'; '+built.nodes.filter(node => node.kind === 'data').length+' data/file nodes; '+built.software.size+' software entities. Left → right: inputs → processes → output.'+(cyclic ? ' Cycles or cycle-dependent nodes: '+cyclic+'; edges retained.' : '')+(!analysis.producers.has(output) ? ' No producing action is recorded for this output.' : '');
       boundaries.append(make('h3','','Upstream boundaries (no recorded producer)'));
       for (const id of leaves) {
         const row = make('div');row.append(relationshipButton(id),make('span','hint',model.inputs.has(id) ? ' Declared workflow input' : category(id) === 'Value' ? ' Task value; upstream producer not linked' : ' Origin not linked in this crate'));boundaries.append(row);
@@ -732,7 +766,7 @@
     document.querySelectorAll('[data-scope]').forEach(b => b.addEventListener('click',() => {scope = b.dataset.scope;renderList();}));
     document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click',() => setView(b.dataset.view)));
     for (const id of ['workflow-output','workflow-zoom']) $(id).addEventListener('change',renderWorkflow);
-    for (const id of ['lineage-output','lineage-zoom']) $(id).addEventListener('change',renderLineage);
+    for (const id of ['lineage-output','lineage-detail','lineage-values','lineage-software','lineage-zoom']) $(id).addEventListener('change',renderLineage);
     for (const id of ['resource-process','resource-metric','resource-cached']) $(id).addEventListener('change',renderResources);
     $('resource-search').addEventListener('input',renderResources);
     document.querySelectorAll('[data-detail]').forEach(b => b.addEventListener('click',() => setDetailView(b.dataset.detail)));

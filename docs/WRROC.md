@@ -387,10 +387,12 @@ input/output filters, all property values and original entity JSON.
   disconnected branches. Use the output selector to highlight explicit output
   ancestry, or zoom/fit width and scroll to explore.
 - **Output lineage** lets you select any declared workflow output and follow
-  its explicit ancestry, left to right: external inputs, task executions,
-  intermediate results and publication. Software/tools appear as supporting
-  context with dashed links. Click a node to inspect its metadata and scripts.
-  Boundaries without a producer are listed as declared inputs or unknown origins.
+  its explicit ancestry, left to right: external inputs, processes, intermediate
+  results and publication. The default process overview groups repeated task
+  executions by process while retaining intermediate files. Task execution mode
+  expands the same path to individual executions. Scalar values and
+  software/tools are optional diagram layers so the overview remains readable;
+  boundaries without a producer are listed as declared inputs or unknown origins.
 
 Workflow-level aggregate input/output relationships are **not** interpreted as
 all-to-all task dependencies. Lineage shows every declared input to each producing
