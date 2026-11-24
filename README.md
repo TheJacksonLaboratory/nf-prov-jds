@@ -24,7 +24,7 @@ Source and issues: [TheJacksonLaboratory/nf-prov-jds](https://github.com/TheJack
 | 0.1.x   | 26.10 |
 
 The inherited release history in the [changelog](CHANGELOG.md) refers to upstream
-`nf-prov`, not releases of this fork. `nf-prov-jds 0.1.1` is based on `nf-prov 1.8.0`.
+`nf-prov`, not releases of this fork. `nf-prov-jds 0.1.2` is based on `nf-prov 1.8.0`.
 
 ## Get Started
 
@@ -35,7 +35,7 @@ To enable and configure `nf-prov-jds`, include the following snippet in your Nex
 
 ```groovy
 plugins {
-  id 'nf-prov-jds@0.1.1'
+  id 'nf-prov-jds@0.1.2'
 }
 
 prov {
@@ -88,6 +88,7 @@ For Workflow Run RO-Crate output, processes can declare the tools they use with
 - `name` (required)
 - `version`
 - `url`
+- `doi` (a DOI string or list of DOI strings for associated publications)
 - `author` (a name or list of names)
 - `description`
 - `format`
@@ -103,6 +104,7 @@ process ALIGN {
         name: 'STAR',
         version: '2.7.9a',
         url: 'https://github.com/alexdobin/STAR',
+        doi: '10.1093/bioinformatics/bts635',
         author: 'Alexander Dobin',
         format: 'application/x-executable',
         keywords: ['alignment', 'rnaseq'],
@@ -117,7 +119,8 @@ process ALIGN {
 
 The same `ext.prov` map can be assigned in a `process.withName` configuration
 selector. Version values must be quoted strings, and URLs must be absolute
-HTTP(S) URLs without credentials. Unknown fields and malformed annotations
+HTTP(S) URLs without credentials. DOI values may be a nonempty string or a list
+of nonempty strings. Unknown fields and malformed annotations
 raise an error and prevent the WRROC report from being written.
 
 These are declared tool annotations, not versions measured from executed

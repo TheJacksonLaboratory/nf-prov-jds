@@ -4,6 +4,10 @@ All notable changes to the nf-prov-jds plugin will be documented here.
 
 See [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.2] - nf-prov-jds
+
+- Add optional DOI metadata to `ext.prov.tools` annotations.
+
 ## [0.1.1] - nf-prov-jds
 
 - Show `ext.prov.tools` metadata, including versions, authors, URLs, keywords and descriptions, alongside recorded task commands in the offline explorer.

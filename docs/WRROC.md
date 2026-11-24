@@ -152,6 +152,7 @@ process RSEM_ALIGNMENT_EXPRESSION {
                 name: 'RSEM',
                 version: '1.3.1',
                 url: 'https://github.com/deweylab/RSEM',
+                doi: '10.1186/1471-2105-12-323',
                 author: ['Bo Li', 'Colin Dewey'],
                 format: 'application/x-executable',
                 keywords: ['alignment', 'expression', 'rnaseq'],
@@ -176,10 +177,12 @@ process RSEM_ALIGNMENT_EXPRESSION {
 
 The same map can be assigned with `ext.prov = [...]` in a `process.withName`
 configuration selector. `name` is required. Optional fields are `version`, `url`,
-`author`, `description`, `format`, and `keywords`:
+`doi`, `author`, `description`, `format`, and `keywords`:
 
 - Quote version strings; numeric values are rejected rather than losing precision.
 - `url` must be a single absolute HTTP(S) URL without credentials.
+- `doi` accepts a DOI string or a list of DOI strings for associated
+  publications.
 - `author` accepts a person's name or a list of people's names. These are exported
   as inline `Person` objects. `keywords` accepts a string or list of strings.
 - Unknown keys and malformed annotations raise an explicit error. The existing

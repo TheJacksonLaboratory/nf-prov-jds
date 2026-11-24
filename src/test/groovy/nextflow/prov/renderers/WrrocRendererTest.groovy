@@ -572,6 +572,7 @@ class WrrocRendererTest extends Specification {
         final owner = script(projectDir.resolve('modules/align/main.nf'), ['ALIGN'])
         final process = processor('WF:ALIGN', owner, [prov: [tools: [
             [name: 'RSEM', version: '1.3.1', url: 'https://github.com/deweylab/RSEM',
+             doi: ['10.1093/bioinformatics/bts635', '10.1186/1471-2105-12-323'],
              author: ['Bo Li', 'Colin Dewey'], format: 'application/x-executable',
              keywords: ['alignment', 'rnaseq'], description: 'Expression quantification'],
             [name: 'STAR', version: '2.7.9a', url: 'https://github.com/alexdobin/STAR'],
@@ -590,6 +591,7 @@ class WrrocRendererTest extends Specification {
         graph[moduleId].hasPart == (0..2).collect { ['@id': "${moduleId}/tool/${it}".toString()] }
         graph["${moduleId}/tool/0"].softwareVersion == '1.3.1'
         graph["${moduleId}/tool/0"].url == 'https://github.com/deweylab/RSEM'
+        graph["${moduleId}/tool/0"].doi == ['10.1093/bioinformatics/bts635', '10.1186/1471-2105-12-323']
         graph["${moduleId}/tool/0"].author == [
             ['@type': 'Person', name: 'Bo Li'], ['@type': 'Person', name: 'Colin Dewey']
         ]
@@ -639,6 +641,7 @@ class WrrocRendererTest extends Specification {
         [tools: [[name: 'STAR', version: 2]]]                   | 'version must be'
         [tools: [[name: 'STAR', url: ['https://example.org']]]]  | 'url must be'
         [tools: [[name: 'STAR', url: 'javascript:alert(1)']]]    | 'url must be'
+        [tools: [[name: 'STAR', doi: [123]]]]                    | 'doi must be'
         [tools: [[name: 'STAR', versions: '2']]]                | 'unknown keys'
     }
 

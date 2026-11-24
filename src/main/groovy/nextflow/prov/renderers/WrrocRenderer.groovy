@@ -885,7 +885,7 @@ class WrrocRenderer implements Renderer {
         final tools = ((Map) annotation).get('tools')
         if( !(tools instanceof List) )
             throw new IllegalArgumentException(prefix + 'tools must be a list of tool maps')
-        final allowed = ['name', 'version', 'url', 'author', 'description', 'format', 'keywords']
+        final allowed = ['name', 'version', 'url', 'doi', 'author', 'description', 'format', 'keywords']
         final result = [] as List<Map>
         for( int i = 0; i < ((List) tools).size(); i++ ) {
             final value = ((List) tools)[i]
@@ -901,7 +901,7 @@ class WrrocRenderer implements Renderer {
                 if( tool.containsKey(key) && (!(tool[key] instanceof CharSequence) || !tool[key].toString().trim()) )
                     throw new IllegalArgumentException(location + "${key} must be a nonempty string (quote version numbers)")
             }
-            for( final key : ['author', 'keywords'] ) {
+            for( final key : ['doi', 'author', 'keywords'] ) {
                 if( !tool.containsKey(key) )
                     continue
                 final entries = tool[key] instanceof List ? (List) tool[key] : [tool[key]]
@@ -924,6 +924,7 @@ class WrrocRenderer implements Renderer {
             'name'          : tool.name.toString(),
             'softwareVersion': tool.version?.toString(),
             'url'           : tool.url?.toString(),
+            'doi'           : tool.doi,
             'author'        : authors ? authors.collect { ['@type': 'Person', 'name': it.toString()] } : null,
             'description'   : tool.description?.toString(),
             'encodingFormat': tool.format?.toString(),
