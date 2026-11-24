@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java_version: [17]
+        java_version: [21]
         nextflow_version: ['26.10']
 
     steps:
